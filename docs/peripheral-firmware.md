@@ -1,7 +1,7 @@
 # Coprocessor and Peripheral Firmware
 
 The DSMC2 brain loads firmware into a set of non-OMAP processors and accessories
-at boot (see [platform.md](platform.md) for the processor list). A full filesystem
+at boot (see [platform. The serial protocol that attaches and identifies these modules — and why no accessory is cryptographically gated — is in [accessory-bus.md](accessory-bus.md).md](platform.md) for the processor list). A full filesystem
 pull ([extraction.md](extraction.md)) includes all of these images under
 `/image2/`. This page says what they are and which are readable.
 

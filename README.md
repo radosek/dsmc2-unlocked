@@ -41,6 +41,7 @@ tools, so that owners can maintain hardware RED no longer sells.
 | [docs/feature-unlock.md](docs/feature-unlock.md) | Features, capabilities, and model identity |
 | [docs/extraction.md](docs/extraction.md) | Pulling the filesystem and firmware image off the camera |
 | [docs/peripheral-firmware.md](docs/peripheral-firmware.md) | Coprocessor and accessory firmware images |
+| [docs/accessory-bus.md](docs/accessory-bus.md) | The accessory bus: module enumeration, identity, why nothing is crypto-locked |
 | [docs/anamorphic.md](docs/anamorphic.md) | Anamorphic de-squeeze ratios (researched) |
 | [docs/research-notes.md](docs/research-notes.md) | Difficulties, insights, and the research story |
 | [media/](media/) | MINI-MAG and compatible SSDs |

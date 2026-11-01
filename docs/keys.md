@@ -149,6 +149,23 @@ verified against the key inside the file or against a key from the firmware tabl
 repair tool, and is noted here only so the keys in the image are all accounted
 for.
 
+## 5. The accessory 1-Wire salt (published)
+
+Accessory modules on the serial bus (expanders, power modules, battery plates,
+handles, lens mounts) carry a 1-Wire identity chip whose signature is a standard
+MD5 over a 6-byte salt and the board identity fields:
+
+```
+salt (6 bytes): 27 A8 12 4F B3 EA
+signature     : MD5( salt || board identity fields )
+```
+
+This is a different constant from the media salt `82 3C 16 F5 4A 9C`, but the same
+primitive. Unlike the media signature, the accessory signature is **not a gate**:
+a missing or mismatched value is only logged, never enforced. The full
+enumeration handshake and what is and isn't checked are in
+[accessory-bus.md](accessory-bus.md).
+
 ## What is actually encrypted, and with what
 
 A map of the whole platform, from reading the crypto call sites:
@@ -161,6 +178,7 @@ A map of the whole platform, from reading the crypto call sites:
 | presets | AES-256, universal key | **yes** — key above |
 | settings DB / environment / calibration | checksums/MD5, not signatures | integrity only, trivially matched |
 | media (MINI-MAG) | model whitelist + MD5 SMART signature | **yes** — see the media folder |
+| accessory modules (bus) | base64 descriptor + MD5 1-Wire signature | **yes** — not gating; see [accessory-bus.md](accessory-bus.md) |
 
 The pattern is deliberate: strong asymmetric crypto only where RED and the camera
 must agree (packages, licences), and cheap checksums everywhere the camera only
