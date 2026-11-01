@@ -1,7 +1,5 @@
 # MINI-MAG Authentication
 
-Written in simplified technical English.
-
 The camera authenticates an inserted drive with **two independent checks**. The
 whole scheme was recovered from the camera firmware. It was reproduced offline.
 It uses only standard MD5 and plain string matching.

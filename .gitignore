@@ -12,3 +12,9 @@ fw_dump/
 fw_crypto/
 fs_mirror/
 dumps/
+
+# --- Published artifacts (explicit exceptions to the broad rules above) ---
+# These keys are intentionally public: they are DECRYPTION keys embedded in the
+# camera firmware, not signing keys. See docs/keys.md.
+!tools/fw-crypto/fw_v2_privkey.der
+!tools/fw-crypto/fw_v3_privkey.der

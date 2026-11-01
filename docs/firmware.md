@@ -4,9 +4,6 @@ This document explains how RED packages and protects DSMC2 firmware. It gives th
 formats and the encryption design. It tells you which algorithms are used and how
 the parts fit together. It does not give keys, key locations, or a ready-to-run
 unpacker.
-
-Written in simplified technical English.
-
 ## Two package formats: v2 and v3
 
 A firmware update file is a container. There are two container formats. They are

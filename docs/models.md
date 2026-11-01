@@ -1,7 +1,4 @@
 # DSMC2 Model Family
-
-Written in simplified technical English.
-
 ## The bodies
 
 DSMC2 is RED's second-generation DSMC modular body. "DSMC" means Digital Still and

@@ -1,7 +1,5 @@
 # Compatible SSDs — What to Buy (2026)
 
-Written in simplified technical English.
-
 The camera matches a **model string**, not a part number. So it does not matter
 that the original RED OEM drives (Delkin, Innodisk, Centon, Virtium) are
 discontinued. Any SATA SSD that can present an approved model string works.

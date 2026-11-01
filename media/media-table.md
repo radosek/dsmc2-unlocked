@@ -1,7 +1,5 @@
 # The Firmware Media Table
 
-Written in simplified technical English.
-
 The camera carries a table of approved recording media. The camera matches the
 model-string whitelist first. The camera then looks the drive up in this table.
 This gives the drive's parameters (capacity, data-rate class) and the **required

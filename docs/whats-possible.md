@@ -3,9 +3,6 @@
 This page states what the reverse-engineering enables. It gives the outcomes, not
 the methods. It does not publish the methods, the internal keys, or the access
 steps.
-
-Written in simplified technical English.
-
 ## Confirmed
 
 - **The firmware is understood.** The packaging and the per-model structure are

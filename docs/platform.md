@@ -2,9 +2,6 @@
 
 This document gives a hardware and software overview of the RED DSMC2 camera. The
 facts come from a SCARLET-W 5K on firmware 7.4.1.
-
-Written in simplified technical English.
-
 ## Main processor and OS
 
 - **Application processor:** a TI OMAP-class ARM Cortex-A8. It is 32-bit. It uses

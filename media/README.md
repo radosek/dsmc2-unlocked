@@ -1,7 +1,5 @@
 # Media — RED MINI-MAG and Compatible SSDs
 
-Written in simplified technical English.
-
 The DSMC2 records to a **RED MINI-MAG**. A MINI-MAG is a SATA SSD inside a
 RED-branded caddy. The camera authenticates the drive. After that, the camera
 records at full speed. RED has discontinued these mags. RED no longer sells or

@@ -1,7 +1,5 @@
 # Media Adapter Hardware
 
-Written in simplified technical English.
-
 Only one physical task remains to use a bare SATA SSD as a magazine. You need a
 **connector/adapter board**. The board seats the drive in the mag bay. The board
 routes SATA plus power to the camera's mag connector.
