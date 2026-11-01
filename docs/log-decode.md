@@ -55,7 +55,7 @@ def decode(path, out):
         k = ka if r % 2 == 0 else kb
         rec = bytes(d[r*REC + i] ^ k[i] for i in range(REC))
         lines.append(rec.replace(b"\x00", b"").decode("latin-1"))
-    open(out, "w", encoding="latin-1").write("\n".join(lines))
+    open(out, "w", encoding="latin-1").write("".join(lines))
 ```
 
 For it to work:
@@ -90,10 +90,11 @@ DSMC Log File version 3
 
 ## Cleaning and triage
 
-The raw decoder writes one line per 512-byte record, so a single message that
-crosses a record boundary gets a stray newline in it, and all the boots are
-concatenated. A second tool rejoins the lines, splits the boots, and triages
-each one:
+Records are just a transport unit: messages carry their own newlines and run
+straight across record boundaries, so the decoder concatenates records without
+adding anything. The decoded file is still every boot concatenated, and a few
+messages span more than one line. A second tool rejoins those, splits the boots,
+and triages each one:
 
 ```
 python3 tools/red-log-decoder/red_log_tool.py sessions <decoded.txt>        # list boots

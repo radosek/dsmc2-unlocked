@@ -43,7 +43,7 @@ def decode(infile, outfile=None):
         text = ''.join(chr(b) if 32 <= b < 127 else ('' if b == 0 else chr(b)) for b in decoded)
         lines.append(text)
 
-    out = '\n'.join(lines)
+    out = ''.join(lines)
     with open(outfile, 'w') as f:
         f.write(out)
 

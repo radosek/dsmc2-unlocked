@@ -2,14 +2,14 @@
 """
 RED DSMC2 log parser / triage tool.
 
-The raw decoder (decode_red_log.py) emits ONE line per 512-byte record, so a
-single log message that crosses a record boundary gets a fake newline jammed
-into it. The decoded file is also a circular dump containing many separate boot
-sessions back-to-back, each of which resets its uptime clock to 0:00:00.
+The decoded file is a circular dump containing many separate boot sessions
+back-to-back, each of which resets its uptime clock to 0:00:00. Messages carry
+their own newlines, but a few (base64 CDB events, some multi-line dumps) span
+more than one physical line.
 
 This tool cleans both problems and triages the result:
 
-  1. REJOIN   - merge wrap artifacts back into whole log lines
+  1. REJOIN   - glue continuation lines back onto their message
   2. SPLIT    - cut the dump into individual boot sessions
   3. DENOISE  - drop high-volume routine chatter from the digest
   4. TRIAGE   - per session, report milestones reached + errors hit
@@ -34,8 +34,7 @@ import re
 import argparse
 from collections import Counter, defaultdict
 
-# A real log line begins with [D:HH:MM:SS:ms] (the leading bracket may be lost
-# to a wrap, so we also accept a continuation that *starts* a timestamp).
+# A real log line begins with [D:HH:MM:SS:ms].
 TS_RE = re.compile(r'^\[(\d+):(\d+):(\d+):(\d+)\]')
 # Severity marker:  ") E: "  ") W: "  ") I: "  or plain ") : "
 SEV_RE = re.compile(r'\)\s*([EWI])?\s*:')
@@ -120,11 +119,9 @@ TS_ANYWHERE_RE = re.compile(r'(?=\[\d+:\d+:\d+:\d+\])')
 def rejoin_and_split(path):
     """Return list of sessions; each session is a list of whole log lines.
 
-    The decoder inserts newlines at 512-byte record boundaries, which do NOT
-    align to log-message boundaries. A single record line therefore often holds
-    the tail of one message plus the head of the next. We fix this per session
-    by concatenating all raw text and re-splitting on the timestamp pattern
-    wherever it occurs.
+    Every message starts with a timestamp, but a few span more than one
+    physical line. Per session we concatenate all raw text and re-split on the
+    timestamp pattern, so each returned line is one whole message.
     """
     with open(path, 'r', errors='replace') as f:
         raw = f.read().split('\n')
@@ -149,7 +146,7 @@ def rejoin_and_split(path):
 
     sessions = []
     for chunk in raw_sessions:
-        # Glue with '' so wrap artifacts vanish, then re-split on timestamps.
+        # Glue with '' so continuation lines rejoin, then re-split on timestamps.
         blob = ''.join(chunk)
         parts = TS_ANYWHERE_RE.split(blob)
         lines = []
@@ -424,7 +421,7 @@ def main():
     s.add_argument('input')
     s.set_defaults(func=cmd_sessions)
 
-    c = sub.add_parser('clean', help='rejoin wrap artifacts, one file, sessions marked')
+    c = sub.add_parser('clean', help='rejoin continuation lines, one file, sessions marked')
     c.add_argument('input'); c.add_argument('-o', '--output')
     c.set_defaults(func=cmd_clean)
 
