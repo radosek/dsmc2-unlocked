@@ -94,6 +94,29 @@ server, and no secret unique to each drive. The full write-up is in the
 a vendor's code can mean a strong RSA signature or a simple hash over a value.
 Those are very different. Only the disassembly tells you which one you face.
 
+## Problem 4 — a boot that reports success
+
+One body fails intermittently: about one boot in three, one of its coprocessor
+boards never answers on its control interface. The boot sequence logs the failure,
+and then logs **`SUCCESS` for the same board in the next line**, because the
+wrapper does not propagate the error. The rest of the start-up runs against a board
+that was never brought up, and the only thing the operator ever sees is a generic
+"possible hardware error" later.
+
+**Insight 4.** The log is not a sequence of results — it is a sequence of messages.
+A `SUCCESS` line proves that a code path was reached, not that the work succeeded.
+Where a boot step matters, check the step's own error line and the elapsed time,
+not the summary line.
+
+The same failure also shows the value of reading the boot sequence in order. The
+board that fails is probed within a couple of milliseconds of power-on, with a
+reset pulse that has essentially no width, while a different board in the same
+start-up uses a proper pulse and settle. That difference is visible only when the
+timings are compared side by side.
+
+**Lesson.** When a device reports a hardware fault, look for the step that should
+have caught it first. A swallowed error changes the diagnosis completely.
+
 ## Why the platform was workable
 
 A few facts made the work possible for one person:

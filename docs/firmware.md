@@ -34,6 +34,10 @@ one v2 package.
 This is the packaging side of a fact in [models.md](models.md): model identity is a
 small piece of data. One file holds every model. One value picks the model.
 
+The same v2 format and the same key also cover the **earlier DSMC1 generation**:
+Epic Dragon 6.3.106 is a v2 package that unpacks with the published key and tool,
+unchanged. See [dsmc1.md](dsmc1.md).
+
 ## How a v2 package is protected
 
 A v2 package has **one** encryption layer. It is a standard design:

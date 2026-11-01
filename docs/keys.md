@@ -107,6 +107,9 @@ So these keys give you the **full plaintext of any shipped firmware package** â€
 every file that goes onto the camera, including the bootloader and the 21.6 MB
 application image.
 
+The same two keys also open **DSMC1** packages â€” the generation shares the
+format. Verified against Epic Dragon 6.3.106; see [dsmc1.md](dsmc1.md).
+
 ```
 python3 tools/fw-crypto/unpack_combo.py <combo.bin> --list
 python3 tools/fw-crypto/unpack_combo.py <combo.bin> --extract 0x16 --out DIR   # pick a model

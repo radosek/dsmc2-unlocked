@@ -43,6 +43,36 @@ write 0x80879300 0xe30d1c1c        # 32-bit write to any address
 Memory runs from `0x80000000`; `file_offset = VA − 0x80000000` maps an address to
 an offset in `dsmc_program.mem`. Over serial, `read reg` moves a few KB/s.
 
+### Peripheral reads — `i2c`, `spi`, `gpio`
+
+`read` and `write` also reach the buses, which is how the boards are inspected
+without any custom code:
+
+```
+read i2c  BUS SLAVE REG LEN            # read LEN bytes from a device register
+write i2c BUS SLAVE REG LEN VALUE
+read i2c16 ...                         # same, 16-bit register address
+read i2c_mask ...                      # write a value under a mask
+read spi  TARGET ADDR LEN              # RAW register read on an SPI target
+test gpio PIN                          # read a GPIO
+test gpio PIN 1                        # drive it high (0 = low)
+maint device_reset DEVICE [1|0]        # assert / release a board's reset
+```
+
+`spi` targets are named: `ts_isp1`, `ts_isp2`, `ts_sensor`, `ts_fpga`, `ts_lma`,
+`ts_audio`, `ts_wireless`. `device_reset` accepts `sensor`, `isp`, `iob`,
+`sidehandle`, `lsb`, `wireless`, `portx`, `hdsdi`.
+
+Two cautions that matter more than the syntax:
+
+- **Addresses that start with `0x80...` are not automatically CPU memory.** The
+  coprocessor register spaces (ISP, IOB, the left-side FPGA) also use addresses in
+  that range. `read reg 0x8004xxxx` therefore reads the running application image,
+  not the chip. Use the `isp`/`spi`/`iob` access commands for those.
+- **`test gpio` has no whitelist.** Some pins are board power enables and some are
+  resets. Driving the wrong one can drop a rail in the middle of a write. Read the
+  pin first, and prefer `maint device_reset` over poking reset pins by hand.
+
 ### `cdb` — the settings database
 
 ```

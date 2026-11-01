@@ -28,12 +28,24 @@ The anamorphic code comes from the RCP SDK enum:
 | 0 | 1.0 (off) | all |
 | 1 | 2.0 | all |
 | 2 | 1.333 | all |
-| 3 | 1.25 | 8K-class sensors only |
+| 3 | 1.25 | sensor-dependent (see below) |
 | 4 | 1.6 | **defined but not in any menu, no name, no factor** |
-| 5 | 1.8 | 8K-class sensors only |
+| 5 | 1.8 | sensor-dependent (see below) |
 | 6 | 1.5 | **not implemented at all** |
 
-## The key finding: it is sensor-gated, not licence-gated
+Measured per sensor: the list generator was run for every camera type × sensor ×
+resolution × aspect combination, and these are the results:
+
+| sensor | combinations offered | extra ratios present |
+|---|---:|---|
+| 6 (Scarlet-W 5K, ours) | 87 | **none** — every usable format is Off / 2x / 1.3x |
+| 9 | 110 | 1.8x on 8K 3:2 and 4:3; 1.25x on 6K FF only |
+| 10, 11, 13, 14, 15 | 127 | 1.8x and 1.25x |
+
+So on a Scarlet-W the anamorphic menu really is **Off / 2x / 1.3x**, and 1.5x is the
+first genuinely new ratio that body can get.
+
+## The key finding: it is sensor-gated, with one exception
 
 Which ratios appear in the menu is decided by the **sensor type**, not the model
 name and not a licence. The list generator enables the extra ratios only for the
@@ -47,6 +59,13 @@ scale, which any sensor can do. So the ratios are a realistic software-unlock
 target, where a sensor-resolution change (covered in [models.md](models.md)) is
 not.
 
+**One exception.** Camera type `0x15` (the 4.5K body) is the only type whose list
+generator also consults the anamorphic *capability bit*: with the bit clear it
+offers Off only, with it set it offers Off / 2x / 1.3x. On every other type the
+capability bit does not affect the list — it only decides whether the format
+**setter** keeps the anamorphic bits, which is why a capability unlock is still
+needed even when the menu already shows options.
+
 ## What a patch would do
 
 Three independent changes, in increasing scope:
@@ -57,7 +76,10 @@ Three independent changes, in increasing scope:
 2. **Add a missing ratio (e.g. 1.5×)** — a few words plus a small code cave to add
    the list entry, its name, and its de-squeeze factor, since code 6 has none of
    those in the firmware. The unlock word has to be included, or the format-setter
-   strips the anamorphic bits back off.
+   strips the anamorphic bits back off. One useful detail: code 6 has no
+   per-ratio config file, and it does not need one — the format encoder reuses the
+   **plain** (no-suffix) configuration, so the recorded geometry is identical to
+   anamorphic Off and only the de-squeeze tag changes.
 3. Both together.
 
 Because there is no MMU and the bootloader does not verify the running image
@@ -69,5 +91,10 @@ for testing and only made permanent by writing it into the boot slot.
 - **Not verified on a camera.** The addresses and the format logic are read from
   7.4.1; the gains are not confirmed on hardware.
 - A ratio is a **display de-squeeze**, not a new sensor mode. It changes how the
-  image is un-stretched for monitoring/output, nothing about capture.
+  image is un-stretched for monitoring/output, nothing about capture. It does not
+  crop either — the frame is unchanged and only the metadata tag differs.
+- The metadata side is already understood by host software. REDCINE-X PRO's R3D
+  library carries the field `anamorphic_mode` and the names `ANA 1.5` / `ANA 1.6`,
+  so a clip tagged with a new code should open with the right geometry without a
+  host-side patch. Still worth confirming on one real clip.
 - This is specific to one firmware build; addresses would differ on another.
