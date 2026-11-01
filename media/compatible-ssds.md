@@ -19,27 +19,51 @@ discontinued. Any SATA SSD that can present an approved model string works.
 | Kingston KC600 mSATA | 256 GB / 512 GB / 1 TB | Still manufactured. SATA III, ~550 MB/s. Phison controller (findable flashing tools). |
 | KingSpec MT mSATA | up to 1 TB | In stock, low cost. |
 | Fanxiang / SHARKSPEED / Kingchuxing mSATA | 512 GB / 1 TB | eBay / Amazon, ~30–130 USD, budget NAND. |
-| Samsung PM851 mSATA 1 TB (used) | 1 TB | Special — see the easy path. |
+| Samsung PM851 mSATA 1 TB (used) | 1 TB | Native approved string — needs HPA cap to 960 GB. See easy path. |
+| Micron M500 / M500IT mSATA (used) | 240 GB / 480 GB | Native approved string, no HPA. See easy path. |
+| Kingston SMS100/200 mSATA (used) | 120 GB | Native approved string, no HPA. See easy path. |
 
 mSATA is a legacy form factor. It is still made and in stock. M.2-SATA is the
 newer option. M.2-SATA allows capacities past 960 GB. KipperTie's approved mag
 uses M.2-SATA at 2 TB.
 
-## Easy path — Samsung PM851 1 TB (low difficulty)
+## Easy path — drives that report an approved string natively (low difficulty)
 
-A genuine Samsung PM851 mSATA 1 TB reports the model string
-`SAMSUNG MZMTE1T0HMJH-00000` natively. This is an approved string in the media
-table. So:
+Several stock OEM SSDs report a model string that is **already in the media table**,
+so they need **no flashing at all** — fit, insert, run `signature_write`. The
+camera matches the ATA model string exactly, and these report an approved one out
+of the box:
 
-1. Get a used Samsung PM851 1 TB mSATA (common historically; scarcer now).
+| Drive | Native model string | Table class | HPA needed? |
+|---|---|---|---|
+| Samsung PM851 mSATA 1 TB | `SAMSUNG MZMTE1T0HMJH-00000` | 960 GB | **Yes** — cap 1 TB → 960 GB |
+| Micron M500 mSATA 480 GB | `Micron_M500_MTFDDAT480MAV` | 480 GB | No — native match |
+| Micron M500 mSATA 240 GB | `Micron_M500_MTFDDAT240MAV` | 240 GB | No — native match |
+| Micron M500IT mSATA 240 GB | `M500IT_MTFDDAT240MBD` | 240 GB | No — native match |
+| Kingston SMS100/200 mSATA 120 GB | `KINGSTON RBU-SMS100S3120GD` / `GD1` | 120 GB | No — native match |
+
+All five strings are present in the 7.4.1 media table (verified in the application
+image). The Micron and Kingston parts are the **better** easy path than the Samsung
+in practice: they report their native capacity, so they pass the geometry gate
+without an HPA cap, and used mSATA M500 drives are cheaper and more common than a
+used PM851. Their downside is smaller size (120–480 GB vs 960 GB).
+
+Steps for any of them:
+
+1. Get a used unit of one of the drives above.
 2. Fit it to the [adapter board](hardware.md).
 3. Insert it and run `signature_write` on the camera — it writes the correct
    page-0x90 signature for that drive. (You can also do it offline with the formula
    in [authentication.md](authentication.md), but the camera is simpler.)
+4. Samsung PM851 only: cap it to 960 GB with an HPA first (see below), or it mounts
+   but records at the 30 MB/s class.
 
-There is no model-string flashing. The only real work is the connector board.
+There is no model-string flashing on this path. The only real work is the connector
+board (plus the one HPA step for the Samsung).
 
-One caveat for **full rate**: the camera checks the drive's reported sector count
+### The Samsung capacity caveat
+
+The camera checks the drive's reported sector count
 against the table row (`AuthenticateREDMedia`), and the
 `SAMSUNG MZMTE1T0HMJH-00000` row expects **960 GB** (1,875,385,008 sectors). A
 stock PM851 reports its native ~1 TB, so it passes the signature but fails the
@@ -58,10 +82,11 @@ in increasing effort.
 ### 1. Buy a drive that already reports an approved string (no flash)
 
 If you can find a drive whose native model string is in the media table, you do
-nothing to it — fit it, insert it, run `signature_write`. The Samsung PM851 mSATA
-1 TB reports `SAMSUNG MZMTE1T0HMJH-00000` natively, which is approved. The catch in
-2026 is that these specific OEM drives are increasingly scarce and used-only, so do
-not build a plan around one part number.
+nothing to it — fit it, insert it, run `signature_write`. The five drives in the
+easy-path table above all qualify (Samsung PM851, Micron M500 / M500IT, Kingston
+SMS100). The catch in 2026 is that these specific OEM drives are increasingly scarce
+and used-only, so do not build a plan around one part number — a SATA bridge
+(option 2) is the resilient choice.
 
 ### 2. Override the model string with a SATA bridge (no flash)
 
