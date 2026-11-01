@@ -7,7 +7,7 @@ It uses only standard MD5 and plain string matching.
 The three checks set the media class and the data rate. They do not decide the
 mount in every case. One read failure does, and it is described below.
 
-## The two gates
+## The three checks
 
 ### 1. Model-string whitelist (selects the media row)
 

@@ -18,15 +18,9 @@ What differs is small configuration:
   in exactly two of ~2062 parameter rows.
 
 So "which model the camera thinks it is" is just data. Changing it is possible.
-But — see below — that does not grant another model's capabilities.
-
-| camera-type tag | factory type | camera ID |
-|---|---|---|
-| `0x11` | WEAPON | WEAPON |
-| `0x14` | WEAPON | WEAPON (a second sensor variant; `factory.db` identical to `0x11`) |
-| `0x15` | WEAPON | RAVEN |
-| `0x16` | SCARLET_WEAPON | SCARLETW |
-| `0x17` | EPIC-W | EPIC-W |
+But — see below — that does not grant another model's capabilities. The full
+camera-type tag table (which tag maps to which factory type and camera ID) is in
+[models.md](models.md#camera-type-tags).
 
 ## Capability is not only configuration
 

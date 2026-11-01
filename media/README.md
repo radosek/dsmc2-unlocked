@@ -16,10 +16,11 @@ This folder documents that path in full.
   CFexpress/CF/SD do **not** work. Do not buy them.
 - A MINI-MAG is a stock **mSATA** SSD in a caddy. At least the 960 GB V3 unit
   uses the Silicon Motion SM2246EN controller. Nothing is exotic.
-- The camera sets the media class from **two things only**: the drive's reported
-  **model string** and an **MD5 signature** stored in a SMART log page. You can
-  reproduce both offline. There is no RSA, no server, and no secret that you
-  cannot derive. See [authentication.md](authentication.md).
+- The camera runs **three checks** on an inserted drive: the drive's reported
+  **model string** (whitelist), an **MD5 signature** stored in a SMART log page,
+  and a **geometry** match on the reported sector count. You can reproduce all
+  three offline. There is no RSA, no server, and no secret that you cannot derive.
+  See [authentication.md](authentication.md).
 - So **any SATA SSD can be a mag at full speed**. The drive must report an
   approved model string. The drive must also carry the correct signature. An
   unapproved model still mounts, but at the low data rate. The controller, the
@@ -30,7 +31,7 @@ This folder documents that path in full.
 
 | Document | What it covers |
 |---|---|
-| [authentication.md](authentication.md) | The two-gate lock, the exact signature algorithm, page 0x90/0x91 |
+| [authentication.md](authentication.md) | The three checks, the exact signature algorithm, page 0x90/0x91 |
 | [media-table.md](media-table.md) | The firmware media table: every approved model and its OEM, and whether it can be changed |
 | [mag-firmware.md](mag-firmware.md) | The MINI-MAG controller `.rmf` firmware: format, identity template, clone lead |
 | [compatible-ssds.md](compatible-ssds.md) | What to buy in 2026, the easy path, and the flashing path |

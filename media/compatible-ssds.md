@@ -128,8 +128,8 @@ This matches what the community and approved vendors have reported
 independently:
 
 - Reduser analysis of JinniTech's method: the camera reads only the **SSD model
-  number** and the **SMART log** for verification. This is exactly the two gates
-  here.
+  number** and the **SMART log** for verification. This is exactly the checks
+  described here.
 - Approved third-party mags exist and pass the model-string and signature gates.
   They are purpose-built drives, not stock SSDs. A working mag needs correct
   controller behaviour (power management, hot-plug, sustained write), not only the
@@ -154,5 +154,5 @@ Second, you set the model string through the controller's production tool. The
 drive must report an approved model string for full speed. A drive that cannot be
 made to report one still mounts, but only at the low-speed class.
 
-So the controller work is about meeting the two gates, not about passing a hidden
+So the controller work is about meeting those checks, not about passing a hidden
 camera check. The accept logic is the same on every DSMC2 body.
