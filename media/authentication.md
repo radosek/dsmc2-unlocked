@@ -52,7 +52,7 @@ flag, and the function returns failure.
 - **Geometry matches the model's spec row** → full data rate (the rate the media
   row already set).
 - **Wrong sector count** (or any other mismatched field) → the firmware logs
-  *"Media in %s is NOT a RED product"* and forces throughput to about **30 MB/s**.
+  *"Media authentication error %d ..."* (`AuthenticateREDMedia`) and forces throughput to about **30 MB/s**.
   The drive **still mounts and records**.
 
 This is why a drive with a perfect signature can still be throttled: the signature
