@@ -19,7 +19,7 @@ discontinued. Any SATA SSD that can present an approved model string works.
 | Kingston KC600 mSATA | 256 GB / 512 GB / 1 TB | Still manufactured. SATA III, ~550 MB/s. Phison controller (findable flashing tools). |
 | KingSpec MT mSATA | up to 1 TB | In stock, low cost. |
 | Fanxiang / SHARKSPEED / Kingchuxing mSATA | 512 GB / 1 TB | eBay / Amazon, ~30–130 USD, budget NAND. |
-| Samsung PM851 mSATA 1 TB (used) | 1 TB | Native approved string — needs HPA cap to 960 GB. See easy path. |
+| Samsung PM851 mSATA 1 TB (used) | 1 TB | Native approved string (`RED 1TB V1` row) — geometry matches natively, no HPA. See easy path. |
 | Micron M500 / M500IT mSATA (used) | 240 GB / 480 GB | Native approved string, no HPA. See easy path. |
 | Kingston SMS100/200 mSATA (used) | 120 GB | Native approved string, no HPA. See easy path. |
 
@@ -36,17 +36,16 @@ of the box:
 
 | Drive | Native model string | Table class | HPA needed? |
 |---|---|---|---|
-| Samsung PM851 mSATA 1 TB | `SAMSUNG MZMTE1T0HMJH-00000` | 960 GB | **Yes** — cap 1 TB → 960 GB |
+| Samsung PM851 mSATA 1 TB | `SAMSUNG MZMTE1T0HMJH-00000` | 1 TB — `RED 1TB V1` | No — native match |
 | Micron M500 mSATA 480 GB | `Micron_M500_MTFDDAT480MAV` | 480 GB | No — native match |
 | Micron M500 mSATA 240 GB | `Micron_M500_MTFDDAT240MAV` | 240 GB | No — native match |
 | Micron M500IT mSATA 240 GB | `M500IT_MTFDDAT240MBD` | 240 GB | No — native match |
 | Kingston SMS100/200 mSATA 120 GB | `KINGSTON RBU-SMS100S3120GD` / `GD1` | 120 GB | No — native match |
 
 All five strings are present in the 7.4.1 media table (verified in the application
-image). The Micron and Kingston parts are the **better** easy path than the Samsung
-in practice: they report their native capacity, so they pass the geometry gate
-without an HPA cap, and used mSATA M500 drives are cheaper and more common than a
-used PM851. Their downside is smaller size (120–480 GB vs 960 GB).
+image). All five also report their native capacity, which matches the corresponding
+row, so **none of them needs an HPA cap**. The Samsung is the largest (1 TB) and is
+the one that was verified end-to-end (see [authentication.md](authentication.md)).
 
 Steps for any of them:
 
@@ -55,21 +54,19 @@ Steps for any of them:
 3. Insert it and run `signature_write` on the camera — it writes the correct
    page-0x90 signature for that drive. (You can also do it offline with the formula
    in [authentication.md](authentication.md), but the camera is simpler.)
-4. Samsung PM851 only: cap it to 960 GB with an HPA first (see below), or it mounts
-   but records at the 30 MB/s class.
 
 There is no model-string flashing on this path. The only real work is the connector
-board (plus the one HPA step for the Samsung).
+board.
 
-### The Samsung capacity caveat
+### The Samsung capacity question (resolved)
 
-The camera checks the drive's reported sector count
-against the table row (`AuthenticateREDMedia`), and the
-`SAMSUNG MZMTE1T0HMJH-00000` row expects **960 GB** (1,875,385,008 sectors). A
-stock PM851 reports its native ~1 TB, so it passes the signature but fails the
-geometry check and caps at ~30 MB/s. For full rate, cap the drive to 960 GB with
-a host-protected area (HPA) so its reported capacity matches the row. It still
-mounts at 1 TB; it just records at the slow class until capped.
+The camera checks the drive's reported sector count against the table row
+(`AuthenticateREDMedia`). The `SAMSUNG MZMTE1T0HMJH-00000` row is `RED 1TB V1` and
+expects **2,000,409,264 sectors** (1,024,209,543,168 B), which is exactly what a
+PM851-class 1 TB mSATA reports. Earlier revisions of this page said the row wanted
+960 GB and told you to HPA-cap the drive — that was wrong, and the cap is not
+needed. Verified against a real drive: model, serial and sector count from its
+IDENTIFY, signature written by the camera's own routine.
 
 ## The model string is the only real obstacle
 

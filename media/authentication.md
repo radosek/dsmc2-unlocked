@@ -105,16 +105,27 @@ Standard MD5 (IV `67452301 efcdab89 98badcfe 10325476`).
 
 ### The WWN block (`wwn8`)
 
-`wwn8` is built from the drive's ATA IDENTIFY World Wide Name (IDENTIFY words
-108–111):
+`wwn8` is built from the drive's raw ATA IDENTIFY (the 512-byte response the camera
+keeps at `pDeviceInfo+0x8c`). It is **not** the 64-bit WWN. The routine
+(`0x806afa20`–`0x806afab0`) emits, in this order:
 
 ```
-naa  = word108 & 0x0F
-acc  = naa | (word110 << 16) | (word111 << 32)
-wwn8 = little-endian 8 bytes of acc
+w111 = u16 at IDENTIFY[0xde]       # IDENTIFY word 111
+w110 = u16 at IDENTIFY[0xdc]       # IDENTIFY word 110
+naa  = IDENTIFY[0xda] & 0x0F       # low nibble of byte 0xda
+
+wwn8 = LE16(w111) || LE16(w110) || naa || 00 00 00
 ```
 
-Word 109 (the top 16 bits of the full WWN) is not used.
+Word 108 is never read, and only one nibble of word 109 is used. This was confirmed
+by executing the firmware function itself (`0x806af850`) under emulation: with a
+synthetic IDENTIFY whose WWN words are `108=1234 109=5678 110=9ABC 111=DEF0`, the
+bytes fed to MD5 are `f0 de bc 9a 08 00 00 00` — `DEF0`, then `9ABC`, then the
+nibble `0x08`.
+
+Most real drives report a fully populated WWN, so `wwn8` is a per-drive value. A
+cheap SSD or clone frequently reports a half-populated one: for example
+`word111 = 0x0001` with everything else zero gives `01 00 00 00 00 00 00 00`.
 
 ## The important shortcut
 
@@ -131,16 +142,47 @@ genuine page-0x90 record (captured):
 ```
 
 So the full 17-byte page-0x90 record for the model string **`RED 512GB V5`** is a
-**constant you can write verbatim**. Write it onto any drive that reports that
-model and a zero WWN:
+**constant you can write verbatim** — but only onto a drive that reports that model
+**and** a zero `wwn8`:
 
 ```
 01 C9 18 92 2E 75 57 5F 9B 98 9F 55 C6 F1 77 8F 7D
 ```
 
-A drive that reports a **non-zero** WWN hashes differently. The copied bytes will
-not validate on it. For such a drive, do one of two things. Either zero its WWN.
-Or recompute the MD5 from that drive's own WWN with the formula above.
+A drive that reports a **non-zero** `wwn8` hashes differently, and the copied bytes
+will not validate on it. For such a drive, do one of two things. Either zero its
+WWN. Or recompute the MD5 from that drive's own IDENTIFY (see the worked example
+below). Note also that the **model string is part of the hash**: renaming the drive
+(for example from `MZMTE1T0HMJH-00000` to `SAMSUNG MZMTE1T0HMJH-00000`) invalidates
+any signature computed before the rename.
+
+## Only slot 1, or a valid type-3 in slot 2
+
+The camera validates slot 1 against the media row's required type. Then, **if the
+slot-2 type byte is non-zero**, it validates slot 2 against **type 3** and clears
+the "properly signed" flag when that fails. So a type-2 record parked at offset
+`0x11` on a type-1 row silently drops you to the 30 MB/s class. Leave
+`0x11..0x21` zero unless you have a real type-3 signature.
+
+## Worked example — real 1 TB drive, verified
+
+```
+model    = SAMSUNG MZMTE1T0HMJH-00000      (26 chars, matched exactly)
+serial   = S1W8NYAG500153
+sectors  = 2,000,409,264                   (= row 14 "RED 1TB V1" +0xBC, geometry passes)
+WWN words 108..111 = 0000 0000 0000 0001
+wwn8     = 01 00 00 00 00 00 00 00
+```
+
+```
+type 1  01 15 eb df e1 32 21 2a 5a c0 94 54 05 58 c4 3a be   ← write at page 0x90, offset 0
+type 2  02 9c c0 22 d3 cd 96 bf 6f 9a 04 28 83 bb 99 8e f8   (PV DXL, unused by this row)
+type 3  03 b7 ea 8a 7d 2d 23 6e b0 e3 dd 69 df 08 37 53 95
+```
+
+These bytes are the firmware's own output for that IDENTIFY, so they are correct by
+construction. A wrong digest on a correct type byte produces
+`Media in <side> has an invalid Signature_1` in the camera log.
 
 ## Page 0x91 is read, but it is not a gate
 
@@ -170,16 +212,43 @@ drive's ATA IDENTIFY first. It gives you the model and the WWN words. Then:
 
 ```python
 import hashlib
-SALT1 = bytes.fromhex("823c16f54a9c")
 
-def red_type1_signature(model: str, wwn8: bytes = b"\x00"*8) -> bytes:
-    md5 = hashlib.md5(SALT1 + wwn8 + model.encode()).digest()
-    return bytes([0x01]) + md5
+SALT1 = bytes.fromhex("823c16f54a9c")   # type 1 / 3
+SALT2 = bytes.fromhex("29c9e52d08c6")   # type 2
 
-# RED 512GB V5 with a zero-WWN drive:
-print(red_type1_signature("RED 512GB V5").hex())
+
+def wwn8_from_identify(ident: bytes) -> bytes:
+    """Exactly what the camera's routine builds (see 'The WWN block' above)."""
+    w110 = int.from_bytes(ident[0xdc:0xde], "little")
+    w111 = int.from_bytes(ident[0xde:0xe0], "little")
+    return bytes([w111 & 0xFF, w111 >> 8,
+                  w110 & 0xFF, w110 >> 8,
+                  ident[0xda] & 0x0F, 0, 0, 0])
+
+
+def red_signature(ident: bytes, sig_type: int = 1) -> bytes:
+    """ATA IDENTIFY (512 bytes) -> 17-byte page-0x90 record."""
+    model  = ident[0x36:0x5e].decode("latin1")   # words 27..46, truncated below
+    serial = ident[0x14:0x28].decode("latin1")   # words 10..19
+    # ATA strings are byte-swapped inside each 16-bit word
+    swap = lambda s: "".join(s[i + 1] + s[i] for i in range(0, len(s) - 1, 2))
+    model, serial = swap(model).strip(" \t\n\r\v\f"), swap(serial).strip(" \t\n\r\v\f")
+    salt = SALT2 if sig_type == 2 else SALT1
+    md5 = hashlib.md5(salt + wwn8_from_identify(ident))
+    if sig_type in (2, 3):
+        md5.update(serial.encode("latin1"))
+    md5.update(model.encode("latin1"))
+    return bytes([sig_type]) + md5.digest()
+
+
+# RED 512GB V5 on a zero-WWN drive (the captured genuine mag):
+print((b"\x01" + hashlib.md5(SALT1 + b"\x00" * 8 + b"RED 512GB V5").digest()).hex())
 # -> 01c918922e75575f9b989f55c6f1778f7d
 ```
+
+The ready-to-run version, which also accepts a saved `mhdd`-style hex table, is
+`tools/red_sig_from_identify.py` in the analysis workspace:
+`red_sig_from_identify.py message.txt --page page90.bin`.
 
 Write those 17 bytes to the drive's SMART GPL log page 0x90. Use the SSD vendor's
 tool. Or use any host utility that permits a GPL log write. No camera-side step

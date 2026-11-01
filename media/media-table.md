@@ -42,20 +42,26 @@ sectors). The values are exact standard SSD sizes:
 The entry's sector count is **checked at insert** (not just record-time math), so
 the drive's reported geometry must equal it for full rate:
 
-| Model group | Sectors (`+0x24`) | Usable capacity |
+| Model group | Sectors (`+0xBC`) | Usable capacity |
 |---|---|---|
-| 120 GB V6/V7 | 234,441,648 | 120,034,123,776 B (120 GB) |
-| 240 GB V4/V5/V6 | 468,862,128 | 240,057,409,536 B (240 GB) |
-| 480 GB V1/V2/V3, `RED 512GB V5` | 937,703,088 | 480,103,981,056 B (480 GB) |
-| 960 GB V2/V3, `SAMSUNG MZMTE1T0HMJH-00000` | 1,875,385,008 | 960,197,124,096 B (960 GB) |
+| 120 GB models | 234,441,648 | 120,034,123,776 B (120 GB) |
+| 240 GB models | 468,862,128 | 240,057,409,536 B (240 GB) |
+| 480 GB V1/V2/V3, `RED 512GB V5` (both rows) | 937,703,088 | 480,103,981,056 B (480 GB) |
+| 960 GB V1/V2/V3, `PV DXLM1TB V1/V2/V3` | 1,875,385,008 | 960,197,124,096 B (960 GB) |
+| `SAMSUNG MZMTE1T0HMJH-00000` (rows `RED 1TB V1` and `PV DXLM1TB V4`) | 2,000,409,264 | 1,024,209,543,168 B (1 TB, 953.9 GiB) |
+
+The sector count lives at entry offset **`+0xBC`** (a u32). The field at `+0x24` is
+zero in every entry; an earlier revision of this page read `+0x24` and therefore
+listed shifted values.
 
 Note the marketing vs usable quirk. The **"512GB" MINI-MAG is a 480 GB drive**.
 Media-table entry `RED 512GB V5` is a 480 GB Delkin unit.
 
-The `SAMSUNG MZMTE1T0HMJH-00000` row expects **960 GB** (1,875,385,008 sectors),
-not the PM851's native ~1 TB. So a stock PM851 1 TB passes the signature but fails
-the geometry check and throttles to 30 MB/s unless its reported capacity is capped
-to 960 GB (HPA).
+The `SAMSUNG MZMTE1T0HMJH-00000` row (`RED 1TB V1`, RED media ID 19, rate class
+200/320) expects **2,000,409,264 sectors** — the PM851's own native 1 TB geometry.
+So a stock PM851 matches the row exactly and **needs no HPA cap**. (An earlier
+revision claimed this row expected 960 GB; that was wrong — 1,875,385,008 belongs
+to the 960 GB rows.)
 
 ## The two best clone targets
 
@@ -82,6 +88,11 @@ model-string gate matches:
 | 2 TB (approved) | `KipperTie Longtake 2TB V1` | KipperTie M.2-SATA |
 
 Two things are worth noting:
+
+- `RED 1TB V1` is the media table's **display name** (entry 14), not an ATA model
+  string: the row's actual model string is `SAMSUNG MZMTE1T0HMJH-00000` and its OEM
+  is Samsung. It is the row the camera selects for a 1 TB PM851-class drive, and
+  the camera reports it as a 1 TB RED mag.
 
 - Some SKUs report a **raw OEM part number** as the title (the Kingston and
   Micron ones). Others report a **RED-branded** title (`RED 1TB V1`,
