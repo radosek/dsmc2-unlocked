@@ -36,6 +36,9 @@ keys, and tools behind them are in [docs/keys.md](keys.md),
 A **custom firmware** build is in progress. The planned additions are:
 
 - **New anamorphic de-squeeze ratios** beyond the stock set.
+- **In-camera IPP2 on original-DRAGON bodies** (e.g. SCARLET-W) — the colour
+  pipeline gate is one capability bit, not a sensor lock; see [ipp2.md](ipp2.md).
+  Render correctness is pending a hardware shoot-test.
 - **Universal media** — any compatible SATA SSD usable as a mag, with no
   genuine-media check at all.
 

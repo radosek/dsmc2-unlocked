@@ -44,6 +44,7 @@ tools, so that owners can maintain hardware RED no longer sells.
 | [docs/peripheral-firmware.md](docs/peripheral-firmware.md) | Coprocessor and accessory firmware images |
 | [docs/accessory-bus.md](docs/accessory-bus.md) | The accessory bus: module enumeration, identity, why nothing is crypto-locked |
 | [docs/anamorphic.md](docs/anamorphic.md) | Anamorphic de-squeeze ratios, measured per sensor |
+| [docs/ipp2.md](docs/ipp2.md) | In-camera IPP2 on a Dragon-5K body: one capability bit, not a sensor lock |
 | [docs/research-notes.md](docs/research-notes.md) | Difficulties, insights, and the research story |
 | [media/](media/) | MINI-MAG and compatible SSDs |
 
