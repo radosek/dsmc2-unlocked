@@ -5,10 +5,17 @@ whole scheme was recovered from the camera firmware. It was reproduced offline.
 It uses only standard MD5 and plain string matching.
 
 All three checks gate the **full data rate**: fail any one and the firmware caps
-the drive to ~30 MB/s, which is too slow for high-bitrate R3D. They do not block
+the drive to ~30 MB/s. In firmware terms this is a "throttle, not a block" — but
+**for video that distinction is meaningless. R3D needs ~300 MB/s; at 30 MB/s you
+cannot record any usable R3D at all.** A throttled drive is effectively a blocked
+drive. The only thing 30 MB/s buys you over a hard block is that the drive mounts
+and you can write a few stills to it — not a working recording medium.
+
+So treat failing any gate as "the drive does not work". The checks do not block
 the *mount* — a failing drive still mounts and records at the capped rate — so
-"still mounts" is not a pass. The one thing that does block the mount is an
-unreadable SMART log page 0x90, described below.
+"still mounts" is not a pass, and neither is "it recorded something". The one
+thing that blocks the mount outright is an unreadable SMART log page 0x90,
+described below.
 
 ## The three checks
 
@@ -37,8 +44,8 @@ two.
   drive runs at full data rate.
 - **Wrong or zero signature** (the page is readable) → the drive **still mounts and
   records**. But the firmware flags it as "not a properly signed RED product". The
-  firmware then caps throughput to about **30 MB/s**. This is fine for stills or
-  low bitrate. It is too slow for high-bitrate R3D.
+  firmware then caps throughput to about **30 MB/s** — too slow for any R3D, so
+  the drive is unusable for video (stills only). Treat this as blocked.
 - **Unreadable page 0x90** (the drive rejects the vendor log page) → this is
   different. The camera's read fails, and the camera does **not mount the drive at
   all**. The drive must be able to answer that log page.
@@ -131,7 +138,9 @@ alone.
 So all three are mandatory for full speed: the model string (also selects the
 media row), the page-0x90 signature, and the IDENTIFY-field match. None of the
 three blocks the mount — the drive mounts and records at ~30 MB/s on any failure
-— except that an unreadable page 0x90 does stop the mount.
+— except that an unreadable page 0x90 does stop the mount. But ~30 MB/s is below
+any R3D bitrate, so in practice a drive that fails any gate is unusable for
+video. "Full speed" and "works" are the same thing here.
 
 ## The signature algorithm
 

@@ -9,8 +9,9 @@ that it must answer page 0x90 and report the IDENTIFY fields checked below. For 
 **full-rate class**, `AuthenticateREDMedia` compares **~29 ATA IDENTIFY fields**
 against the spec row — the sector count is only one of them, and for a retail
 drive the capability/version words usually fail first. Any mismatch throttles to
-~30 MB/s (it still mounts). See [authentication.md](authentication.md) for the
-full field list.
+~30 MB/s — it still mounts, but that is below any R3D bitrate, so the drive is
+unusable for video (effectively blocked). See
+[authentication.md](authentication.md) for the full field list.
 
 ## Official RED models
 
