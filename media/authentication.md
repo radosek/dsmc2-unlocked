@@ -142,6 +142,68 @@ three blocks the mount — the drive mounts and records at ~30 MB/s on any failu
 any R3D bitrate, so in practice a drive that fails any gate is unusable for
 video. "Full speed" and "works" are the same thing here.
 
+### Expected ATA IDENTIFY values per spec row
+
+These are the exact values `AuthenticateREDMedia` compares against, read
+straight from the auth spec table (base `0x80f3689c`, 12 entries, stride
+`0x4e`, media-ID at `+0x00`) in the 7.4.1 firmware image and decoded with the
+offset→word map above. The 12 rows collapse to **5 distinct capability
+profiles** (sector count aside). A drive must report its selected row's profile
+**and** the matching sector count to clear gate 3. The media-ID is the camera's
+internal number (`pDeviceInfo+0x18920`), not the `RED_MEDIA_ID_*` enum ordinal.
+
+| profile | auth media-IDs | capacities (sectors) |
+|---|---|---|
+| 1 | `0x12`, `0x11` | 0x12=468,862,128; 0x11=937,703,088 |
+| 2 | `0x1f`, `0x24`, `0x26` | 0x1f=1,875,385,008; 0x24=234,441,648; 0x26=468,862,128 |
+| 3 | `0x1e`, `0x1d`, `0x22`, `0x27` | 0x1e=1,875,385,008; 0x1d=1,875,385,008; 0x22=234,441,648; 0x27=468,862,128 |
+| 4 — **RED 1TB V1** (confirmed) | `0x13` | 0x13=2,000,409,264 |
+| 5 | `0x23`, `0x25` | 0x23=234,441,648; 0x25=468,862,128 |
+
+Expected value of each checked word, per profile (` = ` marks a word identical
+to profile 1 — the differences are what separate drives):
+
+| word | field | P1 | P2 | P3 | P4 | P5 |
+|---|---|---|---|---|---|---|
+| 0 | general config | `0x0440` | `0x0040` | `0x0040` | `0x0040` | `0x0040` |
+| 1 | logical cylinders | `0x3FFF` | `=` | `=` | `=` | `=` |
+| 2 | specific config | `0xC837` | `=` | `=` | `=` | `=` |
+| 3 | logical heads | `0x0010` | `=` | `=` | `=` | `=` |
+| 6 | sectors/track | `0x003F` | `=` | `=` | `=` | `=` |
+| 49 | capabilities | `0x2F00` | `=` | `=` | `=` | `=` |
+| 50 | capabilities 2 | `0x4001` | `0x4000` | `0x4000` | `0x4000` | `0x4000` |
+| 53 | field validity | `0x0007` | `=` | `=` | `=` | `=` |
+| 54 | cur cylinders | `0x3FFF` | `=` | `=` | `=` | `=` |
+| 55 | cur heads | `0x0010` | `=` | `=` | `=` | `=` |
+| 56 | cur sec/track | `0x003F` | `=` | `=` | `=` | `=` |
+| 63 | multiword DMA (&0x7) | `0x0007` | `=` | `=` | `=` | `=` |
+| 64 | PIO modes | `0x0003` | `=` | `=` | `=` | `=` |
+| 69 | additional support | `0x40B0` | `0x4D20` | `0x5F20` | `0x0F00` | `0x4D20` |
+| 75 | queue depth | `0x001F` | `=` | `=` | `=` | `=` |
+| 76 | SATA capabilities | `0xF70E` | `0x830E` | `0xE70E` | `0x850E` | `0x870E` |
+| 80 | major version | `0x03F8` | `0x03F0` | `=` | `0x03FC` | `0x03F0` |
+| 81 | minor version | `0x0028` | `0x0000` | `0x0000` | `0x0039` | `0x0000` |
+| 82 | command sets 1 | `0x746B` | `=` | `=` | `=` | `=` |
+| 83 | command sets 2 | `0x7D09` | `0x7701` | `=` | `0x7D01` | `0x7F01` |
+| 84 | command sets 3 | `0x6163` | `0x4063` | `0x4063` | `0x4163` | `0x4063` |
+| 85 | cmd/feat enabled (&0x7218) | `0x7008` | `=` | `=` | `=` | `=` |
+| 86 | cmd/feat enabled (&0xbc07) | `0xBC01` | `0xB401` | `=` | `=` | `=` |
+| 87 | cmd/feat default | `0x6163` | `0x4063` | `0x4063` | `0x4163` | `0x4063` |
+| 88 | Ultra DMA (&0x7f) | `0x007F` | `=` | `=` | `=` | `=` |
+| 106 | sector size relation | `0x6003` | `0x4000` | `0x4000` | `0x4000` | `0x4000` |
+| 117 | logical sector size (dword) | `0x0000` | `0x0100` | `=` | `=` | `0x0100` |
+| 119 | command set ext | `0x401E` | `0x4018` | `0x4018` | `=` | `0x4018` |
+| 120 | command set ext 2 | `0x401C` | `0x4018` | `0x4018` | `=` | `0x4018` |
+| 169 | TRIM support | `0x0001` | `=` | `=` | `=` | `=` |
+| 222 | transport major | `0x107F` | `=` | `=` | `=` | `=` |
+| 223 | transport minor | `0x0000` | `=` | `=` | `=` | `=` |
+
+> Profile 4 (ID `0x13`, RED 1TB V1) matches the worked SM2246EN case below
+> exactly (word 80 `0x03FC`, 81 `0x0039`, 83 `0x7D01`, 84/87 `0x4163`, 119/120
+> `0x401E`/`0x401C`). Profile 5 (IDs `0x23`/`0x25` = 120GB/240GB) is the one whose
+> version/command-set words a stock ACS-2 SM2246EN can match (word 83 `0x7F01`),
+> which is why those two rows are the only no-patch path on that controller.
+
 ## The signature algorithm
 
 The 16-byte value is a **standard MD5**. It is not RSA. It is not a CRC. It is
