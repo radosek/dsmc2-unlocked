@@ -1,4 +1,4 @@
-# Never commit key material, dumps, or firmware images to this public repo
+# Upstream: Never commit key material, dumps, or firmware images
 *.der
 *.pem
 *.key
@@ -18,10 +18,52 @@ fw_crypto/
 fs_mirror/
 dumps/
 
-# --- Published artifacts (explicit exceptions to the broad rules above) ---
-# These keys are intentionally public: they are DECRYPTION keys embedded in the
-# camera firmware, not signing keys. See docs/keys.md.
+# Published upstream artifacts (explicit exceptions to the broad rules above)
 !tools/fw-crypto/fw_v2_privkey.der
 !tools/fw-crypto/fw_v3_privkey.der
-# The log XOR pad is a published obfuscation constant, not a secret. See docs/log-decode.md.
 !tools/red-log-decoder/log_xor_table.bin
+
+# DSMC2 Virtual Brain Emulator
+# Proprietary firmware, images, and user assets must NEVER be committed
+firmware_store/
+user_firmware/
+*.pkg
+*.dump
+*.preset
+*.r3d
+*.raw
+
+# Build and compilation artifacts
+target/
+build/
+bin/
+obj/
+*.exe
+*.dll
+*.pdb
+*.o
+*.a
+*.so
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env/
+.pytest_cache/
+.pytest_temp/
+
+# System, test artifacts, and runtime logs
+logs/
+*.log
+.system_generated/
+.idea/
+.vscode/
+persistent_store/
+snapshots/
+*.dsmc2
+test_report.json
+
+# Research submodule / clone
+research/

@@ -117,3 +117,15 @@ wait for the announced build.
 
 There is a Discord for owners following this work and the upcoming custom firmware. For
 an invite, or any question about the project, reach out: **radosek@pm.me**.
+
+---
+
+## DSMC2 Virtual Brain (Virtual Camera Emulator)
+
+In addition to reverse-engineering documentation and hardware repair tooling, this repository includes **DSMC2 Virtual Brain**, a faithful full-system hardware and operating system emulator for RED DSMC2 camera bodies.
+
+DSMC2 Virtual Brain executes user-supplied ARM Cortex-A8 machine code (`dsmc_program.mem`), emulates OMAP3530 / DM3730 SoC peripherals (INTC, GPTimers, PRCM, UARTs, I2C, GPMC NAND), coprocessors (Xtensa IOB0/IOB1, Xtensa ISP, TI C64x+ DSP), and provides a freeze-proof Web Studio interface with interactive LCD touchscreen, physical camera controls, RCP network control, and developer telemetry.
+
+For comprehensive emulator documentation, architecture diagrams, installation instructions, firmware setup, and CLI reference, please see:
+
+👉 **[emulator/README.md](emulator/README.md)**
