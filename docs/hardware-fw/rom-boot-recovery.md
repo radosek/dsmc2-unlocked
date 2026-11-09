@@ -40,8 +40,7 @@ through a resistor divider to ground, no MOSFET — and it failed: it idled at ~
 received a corrupt image, and the loaded image did not run. The clean alternatives are a real
 1.8 V driver: a level shifter (3.3 V ↔ 1.8 V), or an RP2040 whose I/O supply is run at 1.8 V.
 A standard 3.3 V/5 V USB-serial adapter (such as an FT232RL) cannot drive or read 1.8 V
-correctly and needs a shifter. See the [recovery procedure](../access/rom-recovery.md) for the
-three driver options.
+correctly and needs a shifter. See the [recovery procedure](../access/rom-recovery.md) for the driver options.
 
 After the application (or loader) is up, a board on the shared net transmits unrelated traffic
 on the H20 line (~65 B/s). This corrupts host→camera receive. The ROM window (first ~2 s) is
