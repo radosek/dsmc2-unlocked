@@ -21,6 +21,7 @@ Start here. Docs are grouped by topic; each folder below is a theme.
 - [access/serial-shell.md](access/serial-shell.md) — enabling and using the debug shell
 - [access/shell-commands.md](access/shell-commands.md) — debug-shell command reference
 - [access/shell-debug-playbook.md](access/shell-debug-playbook.md) — which commands actually work, and how to read the results
+- [access/rom-recovery.md](access/rom-recovery.md) — recover a non-booting camera over the UART3 boot ROM (restore block 0)
 
 ## Features & subsystems — [features/](features/)
 
@@ -37,6 +38,8 @@ Start here. Docs are grouped by topic; each folder below is a theme.
 - [custom-fw/code-injection.md](custom-fw/code-injection.md) — the method behind it (status page, not a how-to)
 
 ## Coprocessor & accessory firmware — [hardware-fw/](hardware-fw/)
+
+- [hardware-fw/rom-boot-recovery.md](hardware-fw/rom-boot-recovery.md) — how the UART3 boot-ROM recovery works (boot path, NAND write, ECC, block lock)
 
 - [hardware-fw/peripheral-firmware.md](hardware-fw/peripheral-firmware.md) — coprocessor and accessory firmware images
 - [hardware-fw/accessory-bus.md](hardware-fw/accessory-bus.md) — module enumeration, identity, why nothing is crypto-locked
