@@ -10,25 +10,46 @@ ordering.
 - **LCD panel: `LD070WU2-SM01`.** This panel can be sourced easily. Confirm the
   video interface matches your driver board before fitting (the monitor is a
   MIPI/LVDS-class panel feeding RED's driver).
-- **Touch digitizer: `EP0700MU9` by EDT.** This is the hard part — it is
-  effectively impossible to source.
-  - **`EP0700M06` and `EP0700M12` will not work** as drop-in replacements: they
-    use a **different touch controller/driver and a different pin-out**.
-  - A substitution is possible with a **custom flex harness** re-mapping the pins
-    (the difference is the connector/driver interface, not the glass size) **plus a
-    firmware side**: the camera reads a panel-ID getter to decide the panel type, and
-    forcing it to report the 7-inch panel (a two-instruction patch, applied post-shell
-    at runtime) makes the camera drive a replacement EDT EP0700M06/M12 at the panel's
-    native 1024×600. Touch degrades gracefully if the digitizer differs. The one thing
-    to verify on the bench is the LVDS timing preset for the specific panel. This also
-    recovers a stock panel whose **touch digitizer is dead** — video keeps working.
-    Harness wiring still untested; the firmware path is traced.
+- **Touch digitizer: `EP0700MU9` by EDT** (flex drawing `40-90127-0`). Hard to
+  source. **All EDT EP0700 variants use a FocalTech FT5x06-class touch controller**
+  — including the stock MU9 — and the camera drives that controller **natively** (no
+  firmware patch needed for touch; the LCD and touch are independent, so video is
+  untouched by a digitizer swap). This corrects earlier notes here: the stock touch is
+  **not** an Atmel part, and a compatible replacement gives **full touch**, not a
+  degraded fallback.
+
+  - **Use `EP0700M12` (flex `40-90188-3`) as the replacement.** The camera speaks the
+    **M09/M12** FocalTech frame format (read from register `0x00`, no header, no CRC),
+    which is what the stock MU9 (an M09-class panel) uses. M12 is the same protocol
+    family → it works.
+  - **`EP0700M06` will NOT work**, even though it is easier to source. M06 uses a
+    **different FT5x06 protocol** — a `0xF9`/`0xAA 0xAA` framed read with an XOR CRC and
+    4-byte write frames — that the camera does not parse. This is a firmware/protocol
+    incompatibility, not just a pin-out difference, so no harness alone fixes it.
+    (Source: the Linux `edt-ft5x06` driver documents the M06-vs-M09/M12 protocol split.)
+  - **What the M12 swap needs** (two things, both bench-verify):
+    1. **Pin-out adapter.** The M12 flex (`40-90188-3`) and the MU9 flex (`40-90127-0`)
+       carry the same 6 signals (`VDD · GND · SDA · SCL · INT · RST`) in a **different
+       pin order**. Build a custom flex/FFC that re-maps them 1:1 to the driver-board
+       connector. The driver board (not the dead glass) is your pin-out reference —
+       trace which connector pin is which by continuity to the I2C pull-ups.
+    2. **I2C slave address.** The camera addresses the touch controller at **`0x3c`**,
+       not the FT5x06 factory default `0x38`. Verify the M12's address (`i2cdetect` on a
+       bench rig) and, if it comes up as `0x38`, strap the FT5x06 `ADDR` pin so it
+       answers `0x3c`. Confirm the camera's expected address by scoping the monitor's
+       touch I2C lines at boot.
+  - This path also recovers a **stock panel whose touch digitizer is dead** — video
+    keeps working regardless; only the FT5x06 needs replacing.
+  - Status: the FocalTech-native / M09-vs-M06 protocol facts are confirmed from firmware
+    analysis; the `0x3c` address and the harness pin map are **not yet bench-verified**.
 - **Side-button connector board: `DF40C-10DS-0.4V(51)`** (Hirose DF40 series,
   10-pin, 0.4 mm pitch). This connector is fragile. After reseating, secure it (UV
   resin or hot-glue) so it does not work loose again.
 
-> An earlier parts list recorded the 7″ touch panel as `EP0700M12`. That is
-> **incorrect** — the original is `EP0700MU9`, and `M12` is not compatible.
+> An earlier parts list recorded the 7″ touch panel as `EP0700M12`. To be precise:
+> the **original** fitted panel is `EP0700MU9` (M09-class). `EP0700M12` is **not** the
+> original, but it **is** the recommended replacement — it shares the M09/M12 FocalTech
+> protocol the camera expects (see above). `EP0700M06` is the one that is incompatible.
 
 ## RED DSMC2 Touch 4.7 (4.7″)
 
