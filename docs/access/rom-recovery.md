@@ -10,10 +10,23 @@ This is the lowest recovery level on the camera. Use it only when the normal met
 
 ### 1.1 Know which failure you have
 
-- If the application or an image partition is damaged, do not use this method. Reflash the
-  firmware from a stock package instead.
-- Use this method only when the camera does not reach the loader. This means block 0 of the
-  NAND is damaged. This is rare.
+The NAND holds the loader in block 0, the application in the image partitions, and settings
+in the data and env partitions. Choose the recovery by how far the camera still boots.
+
+- **The camera still boots far enough to accept a firmware upgrade** (it reaches the upgrade
+  screen or the shell). Reflash a stock firmware package the normal way. Do not use this
+  method.
+- **The camera does not boot at all.** The normal reflash cannot help, because it needs a
+  running system to accept the package. The boot ROM is then the only way in.
+  - If **block 0** (the loader) is damaged, this tool restores it. This is what the pages
+    below cover.
+  - If **block 0 is intact but the application (image partition) is damaged**, the same boot
+    ROM write method can rewrite the image partition from a stock image. This tool targets
+    block 0 today; the image-partition restore uses the identical write path and is the next
+    step. Until then, a dead application with no custom recovery loader means the camera
+    cannot boot on its own — ask the project maintainer.
+
+Block-0 damage is rare. A dead application is the more common "will not boot at all" case.
 
 ### 1.2 Understand the risk
 
