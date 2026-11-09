@@ -1,4 +1,4 @@
-# red_romrestore — DSMC2 block-0 recovery image
+# rom-recovery — DSMC2 block-0 recovery over the boot ROM
 
 Bare-metal ARM image that restores **block 0** of the DSMC2 NAND (the boot loader) over
 the DM3725 **UART3 ROM peripheral-boot** path (DM37xx/OMAP3630 family). It runs when the camera will not boot —
@@ -39,11 +39,17 @@ This repo does **not** ship a block-0 binary (it is RED firmware). You provide y
 If your block 0 is already dead and you cannot dump it, ask the project maintainer for a
 reference image — it is not published here.
 
-## Build
+## Layout
 
-Needs `arm-none-eabi-gcc` (+ `ld`, `objcopy`) and `python3`.
+- `image/` — the bare-metal recovery image. Builds `restore.bin`. Needs only
+  `arm-none-eabi-gcc` and a host `cc` (no Python).
+- `rp2040/` — the RP2040 rig firmware that sends the image to the camera boot ROM.
+- `host/` — host-side serial tools for reading the NAND (back-up and inspection).
+
+## Build the image
 
 ```sh
+cd image
 # dry-run onto a scratch block first (NOT block 0), e.g. block 8189:
 ./build.sh 0 21 8189        # restore.bin = pages 0..20 -> block 8189
 # real block 0, three runs:
@@ -52,22 +58,21 @@ Needs `arm-none-eabi-gcc` (+ `ld`, `objcopy`) and `python3`.
 ./build.sh 42 61            # pages 42..60
 ```
 
-Each build writes `restore.bin`. Send it to the camera with the RP2040 ROM-boot rig
+Each build writes `image/restore.bin`. Send it to the camera with the RP2040 ROM-boot rig
 (see the recovery procedure doc). Watch the UART3 output for `RR: ... RESULT PASS`.
 
-## Files
+### image/ files
 
 - `start.S` — reset vector (sets the stack, calls `rr_main`).
 - `restore.c` — the restore logic.
 - `restore.lds` — links the image at SRAM `0x40200000`.
 - `red_pads.h` — camera pad table (from a live register dump); needed for the NAND unlock.
-- `gen_block0_slice.c` — turns your block-0 dump into the embedded C arrays (host tool; the
-  build compiles it for you, so building the image needs no Python).
+- `gen_block0_slice.c` — turns your block-0 dump into the embedded C arrays (the build
+  compiles and runs it, so building the image needs no Python).
 - `build.sh` — builds one slice.
 
-The dump and list helpers (`nand_dump_rx.py`, `nand_rawread_rx.py`, `nand_list.py`) are
-Python and use `pyserial`. They are only for reading the NAND (back-up and inspection), not
-for building the recovery image.
+The `host/` tools (`nand_dump_rx.py`, `nand_rawread_rx.py`, `nand_list.py`) are Python and
+use `pyserial`. They read the NAND only; they are not part of building the image.
 
 ## Safety
 

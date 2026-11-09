@@ -39,7 +39,7 @@ Block-0 damage is rare. A dead application is the more common "will not boot at 
 
 - A Raspberry Pi RP2040 board (for example, a Waveshare RP2040-Zero).
 - An ARM cross-compiler (`arm-none-eabi-gcc`) and Python 3 on your computer.
-- The recovery image source: [`tools/red_romrestore/`](../../tools/rom-recovery/).
+- The recovery image source: [`tools/rom-recovery/image/`](../../tools/rom-recovery/image/).
 - The RP2040 rig firmware and host tools: see [`tools/rom-recovery/`](../../tools/rom-recovery/).
 
 ## 2. Build the hardware rig

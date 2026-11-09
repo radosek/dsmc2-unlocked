@@ -1,7 +1,7 @@
 # build artifacts
-block0_slice.h
-restore.bin
-restore.elf
-gen_block0_slice
-*.o
+image/block0_slice.h
+image/restore.bin
+image/restore.elf
+image/gen_block0_slice
+image/*.o
 rp2040/spl_data.h
