@@ -33,15 +33,19 @@ ordering.
        pin order**. Build a custom flex/FFC that re-maps them 1:1 to the driver-board
        connector. The driver board (not the dead glass) is your pin-out reference —
        trace which connector pin is which by continuity to the I2C pull-ups.
-    2. **I2C slave address.** The camera addresses the touch controller at **`0x3c`**,
-       not the FT5x06 factory default `0x38`. Verify the M12's address (`i2cdetect` on a
-       bench rig) and, if it comes up as `0x38`, strap the FT5x06 `ADDR` pin so it
-       answers `0x3c`. Confirm the camera's expected address by scoping the monitor's
-       touch I2C lines at boot.
+    2. **I2C slave address.** The camera addresses the touch controller at **`0x3e`**
+       (7-bit), not the FT5x06 factory default `0x38` — RED straps the FocalTech
+       address-select pin to `0x3e` on its own modules. A stock replacement that comes
+       up at `0x38` will not be seen. Fix it one of two ways: **strap the replacement's
+       FT5x06 address-select pin to `0x3e`**, or **patch the camera firmware** to expect
+       `0x38` (a two-byte change to the monitor I2C address table; runtime-pokeable, so
+       testable before any flash). Verify the module's actual address with `i2cdetect` on
+       a bench rig before fitting.
   - This path also recovers a **stock panel whose touch digitizer is dead** — video
     keeps working regardless; only the FT5x06 needs replacing.
-  - Status: the FocalTech-native / M09-vs-M06 protocol facts are confirmed from firmware
-    analysis; the `0x3c` address and the harness pin map are **not yet bench-verified**.
+  - Status: the FocalTech-native / M09-vs-M06 protocol facts and the `0x3e` touch
+    address are confirmed from firmware analysis; the harness pin map and the LVDS
+    timing preset are **not yet bench-verified**.
 - **Side-button connector board: `DF40C-10DS-0.4V(51)`** (Hirose DF40 series,
   10-pin, 0.4 mm pitch). This connector is fragile. After reseating, secure it (UV
   resin or hot-glue) so it does not work loose again.
