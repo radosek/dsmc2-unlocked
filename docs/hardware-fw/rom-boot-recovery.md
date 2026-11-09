@@ -29,9 +29,17 @@ so the ROM peripheral boot works there without any reconfiguration.
 
 In the ROM window the UART3 RX line (pin 29) **idles low** (about 0.28 V) with nothing
 driving it. The strong 1.8 V some testers measure only exists once the application runs. So a
-sink-only driver produces no idle-high and the ROM never sees a start bit. The rig fixes this
-with a 1 kΩ/1 kΩ divider that biases the line to ~1.6 V idle, plus a MOSFET to pull it low for
-each bit.
+sink-only driver produces no idle-high and the ROM never sees a start bit. The proven rig
+fixes this with a 1 kΩ/1 kΩ divider that biases the line to ~1.65 V idle, plus a MOSFET to
+pull it low for each bit.
+
+The bias level is essential, not optional. A minimal rig was tested — a bare RP2040 output
+through a resistor divider to ground, no MOSFET — and it failed: it idled at ~0.62 V, the ROM
+received a corrupt image, and the loaded image did not run. The clean alternatives are a real
+1.8 V driver: a level shifter (3.3 V ↔ 1.8 V), or an RP2040 whose I/O supply is run at 1.8 V.
+A standard 3.3 V/5 V USB-serial adapter (such as an FT232RL) cannot drive or read 1.8 V
+correctly and needs a shifter. See the [recovery procedure](../access/rom-recovery.md) for the
+three driver options.
 
 After the application (or loader) is up, a board on the shared net transmits unrelated traffic
 on the H20 line (~65 B/s). This corrupts host→camera receive. The ROM window (first ~2 s) is

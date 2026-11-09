@@ -38,18 +38,61 @@ The rig connects your computer to the camera UART3 pins through the RP2040. UART
 the IOB mezzanine connector **J15**: pin 27 is TX (from the camera), pin 29 is RX (to the
 camera). The signals are 1.8 V.
 
-Wire the rig as follows:
+### 2.1 Why the rig is more than three wires
+
+The camera line is 1.8 V logic. A common USB-serial adapter (for example an FT232RL)
+drives 3.3 V or 5 V. Two problems follow:
+
+- The adapter drives too high. 3.3 V into the 1.8 V input is above the pin rating.
+- The adapter reads too high a threshold. The camera's 1.8 V high can read as a low.
+
+Also, in the boot-ROM window the receive line (pin 29) **idles low** with nothing on it.
+The driver must hold the idle level near 1.8 V, or the ROM does not see valid data. A
+plain resistor divider from a 3.3 V output to ground idles at the wrong level and fails
+(tested: the ROM received a corrupt image and did not run it).
+
+So you need a driver that produces clean 1.8 V levels and biases the idle near 1.8 V.
+Pick one of the three options below. All three use the same three signals to the camera:
+**camera pin 27 → adapter RX**, **adapter TX → camera pin 29**, **GND ↔ GND**, plus the
+**AE21 strap** (3V3 through 4.7 kΩ to AE21, which selects UART3 boot).
+
+### 2.2 Option A — MOSFET rig (proven, uses common parts)
+
+This is the rig this project proved. It uses an RP2040, one N-channel MOSFET (for example
+an IRLZ44N), and resistors.
 
 1. Connect a 1 kΩ resistor from J15 pin 29 to 3V3.
-2. Connect a 1 kΩ resistor from J15 pin 29 to GND. (The two resistors bias the line to about 1.6 V.)
-3. Connect the RP2040 GP0 through a 100 Ω resistor to the gate of an IRLZ44N MOSFET.
+2. Connect a 1 kΩ resistor from J15 pin 29 to GND. (The two resistors bias the line to about 1.65 V.)
+3. Connect the RP2040 GP0 through a 100 Ω resistor to the gate of the MOSFET.
 4. Connect a 10 kΩ resistor from the MOSFET gate to GND.
 5. Connect the MOSFET source to GND.
 6. Connect the MOSFET drain to J15 pin 29.
 7. Connect RP2040 GP1 to J15 pin 27.
-8. Connect a 4.7 kΩ resistor from 3V3 to the AE21 strap pin. (This selects UART3 boot.)
+8. Connect a 4.7 kΩ resistor from 3V3 to the AE21 strap pin.
 9. Connect all grounds together.
 10. Keep the RSB board connected. The RSB board carries the power signal.
+
+The firmware inverts the transmit line, because the MOSFET inverts it.
+
+### 2.3 Option B — level shifter (cleanest, needs one small board)
+
+Use any 3.3 V USB-serial adapter or RP2040 behind a bidirectional level shifter
+(for example a TXS0108E or a BSS138 board). This is the tidiest option.
+
+1. Connect the adapter TX and RX to the high side (3.3 V) of the shifter.
+2. Set the shifter low side to **1.8 V**. Use a small 1.8 V regulator, or tap a 1.8 V rail.
+3. Connect the shifter low side to camera pin 29 (RX to the camera) and pin 27 (TX from the camera).
+4. Connect the 4.7 kΩ AE21 strap, common ground, and keep the RSB board connected, as above.
+
+With a real 1.8 V driver the transmit line is **not** inverted. No MOSFET and no bias
+divider are needed.
+
+### 2.4 Option C — RP2040 at 1.8 V (fewest parts, for the confident)
+
+Power a bare RP2040's I/O supply (IOVDD) at **1.8 V**. Its pins are then native 1.8 V, so
+you wire just the three signals and the strap — no shifter, no MOSFET. This needs a board
+that lets you separate IOVDD from the 3.3 V rail; the common Waveshare RP2040-Zero does
+not, so most people use Option A or B.
 
 ## 3. Prepare the RP2040
 
