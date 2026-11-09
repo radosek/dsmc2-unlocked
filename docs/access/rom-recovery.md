@@ -64,7 +64,13 @@ plain resistor divider from a 3.3 V output to ground idles at the wrong level an
 So you need a driver that produces clean 1.8 V levels and biases the idle near 1.8 V.
 Pick one of the three options below. All three use the same three signals to the camera:
 **camera pin 27 → adapter RX**, **adapter TX → camera pin 29**, **GND ↔ GND**, plus the
-**AE21 strap** (3V3 through 4.7 kΩ to AE21, which selects UART3 boot).
+**AE21 strap**.
+
+**The AE21 strap** selects UART3 boot. The boot ROM samples AE21 at power-on and it must
+read a logic **high on the 1.8 V domain**. If you have a 1.8 V rail (Options B and C), tie
+AE21 straight to **1.8 V** — no resistor. Only in Option A, where there is no clean 1.8 V
+rail, do you pull AE21 to 3V3 through a 4.7 kΩ resistor; the resistor keeps that over-rail
+pull within the pin's limit. Never drive AE21 from a bare 3.3 V rail with no resistor.
 
 ### 2.2 Option A — MOSFET rig (proven, uses common parts)
 
@@ -78,7 +84,8 @@ an IRLZ44N), and resistors.
 5. Connect the MOSFET source to GND.
 6. Connect the MOSFET drain to J15 pin 29.
 7. Connect RP2040 GP1 to J15 pin 27.
-8. Connect a 4.7 kΩ resistor from 3V3 to the AE21 strap pin.
+8. Connect a 4.7 kΩ resistor from 3V3 to the AE21 strap pin. (This is the workaround for
+   having no 1.8 V rail; the resistor softens 3V3 onto the 1.8 V strap pin.)
 9. Connect all grounds together.
 10. Keep the RSB board connected. The RSB board carries the power signal.
 
@@ -92,17 +99,18 @@ Use any 3.3 V USB-serial adapter or RP2040 behind a bidirectional level shifter
 1. Connect the adapter TX and RX to the high side (3.3 V) of the shifter.
 2. Set the shifter low side to **1.8 V**. Use a small 1.8 V regulator, or tap a 1.8 V rail.
 3. Connect the shifter low side to camera pin 29 (RX to the camera) and pin 27 (TX from the camera).
-4. Connect the 4.7 kΩ AE21 strap, common ground, and keep the RSB board connected, as above.
+4. Tie AE21 straight to **1.8 V** (the shifter low-side rail) — no resistor. Connect the
+   common ground and keep the RSB board connected.
 
-With a real 1.8 V driver the transmit line is **not** inverted. No MOSFET and no bias
-divider are needed.
+With a real 1.8 V driver the transmit line is **not** inverted. No MOSFET, no bias divider,
+and no strap resistor are needed.
 
 ### 2.4 Option C — RP2040 at 1.8 V (fewest parts, for the confident)
 
 Power a bare RP2040's I/O supply (IOVDD) at **1.8 V**. Its pins are then native 1.8 V, so
-you wire just the three signals and the strap — no shifter, no MOSFET. This needs a board
-that lets you separate IOVDD from the 3.3 V rail; the common Waveshare RP2040-Zero does
-not, so most people use Option A or B.
+you wire just the three signals plus AE21 tied straight to **1.8 V** — no shifter, no
+MOSFET, no strap resistor. This needs a board that lets you separate IOVDD from the 3.3 V
+rail; the common Waveshare RP2040-Zero does not, so most people use Option A or B.
 
 ## 3. Prepare the RP2040
 
