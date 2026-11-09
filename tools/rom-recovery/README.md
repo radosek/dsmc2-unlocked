@@ -1,7 +1,7 @@
 # red_romrestore — DSMC2 block-0 recovery image
 
 Bare-metal ARM image that restores **block 0** of the DSMC2 NAND (the boot loader) over
-the OMAP3630 **UART3 ROM peripheral-boot** path. It runs when the camera will not boot —
+the DM3725 **UART3 ROM peripheral-boot** path (DM37xx/OMAP3630 family). It runs when the camera will not boot —
 the on-chip ROM loads this image to SRAM and runs it. No U-Boot, no DDR, no PLL; it uses
 SRAM only.
 

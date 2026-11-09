@@ -2,12 +2,14 @@
 
 This is the technical companion to the [recovery procedure](../access/rom-recovery.md). It
 explains the boot path, the NAND write sequence, and the problems that had to be solved to
-write block 0 from a bare-metal image. Everything here is proven on real hardware (DM3725 /
-OMAP3630 family, the DSMC2 application processor).
+write block 0 from a bare-metal image. Everything here is proven on real hardware: the
+**DM3725** (silkscreen "DM3725CBP100"), the DSMC2 application processor. It is in the
+DM37xx / OMAP3630 family, so the OMAP3630 technical reference manual applies to its boot
+ROM, GPMC, SDRC and pads.
 
 ## The boot path
 
-The OMAP3630 boot ROM supports a **peripheral boot** over UART3. If the `SYS_BOOT5` strap
+The DM3725 boot ROM (DM37xx/OMAP3630 family) supports a **peripheral boot** over UART3. If the `SYS_BOOT5` strap
 (ball AE21) is high at power-on, the ROM tries UART3 first. The ROM:
 
 1. Sends the 4-byte ASIC ID message.
