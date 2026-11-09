@@ -61,8 +61,13 @@ Each build writes `restore.bin`. Send it to the camera with the RP2040 ROM-boot 
 - `restore.c` — the restore logic.
 - `restore.lds` — links the image at SRAM `0x40200000`.
 - `red_pads.h` — camera pad table (from a live register dump); needed for the NAND unlock.
-- `gen_block0_slice.py` — turns your block-0 dump into the embedded C arrays.
+- `gen_block0_slice.c` — turns your block-0 dump into the embedded C arrays (host tool; the
+  build compiles it for you, so building the image needs no Python).
 - `build.sh` — builds one slice.
+
+The dump and list helpers (`nand_dump_rx.py`, `nand_rawread_rx.py`, `nand_list.py`) are
+Python and use `pyserial`. They are only for reading the NAND (back-up and inspection), not
+for building the recovery image.
 
 ## Safety
 

@@ -9,7 +9,8 @@ FIRST=${1:-0}; LAST=${2:-21}; BLK=${3:-0}
 cd "$(dirname "$0")"
 : "${RED_GOLDEN_MAIN:?set RED_GOLDEN_MAIN to your block0 main-only dump (64*2048 B)}"
 : "${RED_GOLDEN_SPARE:?set RED_GOLDEN_SPARE to your block0 spare-only dump (64*64 B)}"
-python3 gen_block0_slice.py "$FIRST" "$LAST" block0_slice.h
+cc -O2 -o gen_block0_slice gen_block0_slice.c
+./gen_block0_slice "$FIRST" "$LAST" block0_slice.h
 CC=arm-none-eabi-gcc
 CFLAGS="-mcpu=cortex-a8 -marm -ffreestanding -nostdlib -Os -fno-pic -fno-builtin -Wall"
 LIBGCC=$($CC $CFLAGS -print-libgcc-file-name)

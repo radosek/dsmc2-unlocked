@@ -6,9 +6,6 @@ It cannot be bricked. It accepts a recovery program over a serial line (UART3).
 
 This is the lowest recovery level on the camera. Use it only when the normal methods fail.
 
-> The procedure text on this page uses Simplified Technical English (ASD-STE100):
-> short sentences, one instruction per step, active voice.
-
 ## 1. Before you start
 
 ### 1.1 Know which failure you have

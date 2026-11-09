@@ -1,0 +1,7 @@
+# build artifacts
+block0_slice.h
+restore.bin
+restore.elf
+gen_block0_slice
+*.o
+rp2040/spl_data.h
