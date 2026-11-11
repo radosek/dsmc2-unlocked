@@ -10,6 +10,11 @@ repository = "https://github.com/_personal/dsmc2-unlocked"
 name = "dsmc_fw_core"
 path = "src/lib.rs"
 
+# PUBLIC read/decrypt/preset/recovery CLI (thin front-end over the lib).
+[[bin]]
+name = "dsmc-fw-core"
+path = "src/bin/dsmc-fw-core.rs"
+
 [dependencies]
 # RSA-OAEP(SHA1, label "dsmc") unwrap of the 256-byte RC4 key + PKCS#1 DER key load.
 rsa = { version = "0.9.8", features = ["sha1"] }

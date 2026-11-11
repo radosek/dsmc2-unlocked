@@ -195,9 +195,15 @@ pub fn read_pack(section: &[u8]) -> Result<Vec<PackFile>, Error> {
 
 /// A file ready to be written during extraction.
 pub struct ExtractedFile {
+    /// Original entry name from the pack (as the python prints it in notes).
+    pub name: String,
     /// Relative path under `<out>/slot/` (traversal-checked).
     pub rel_path: String,
     pub data: Vec<u8>,
+    /// Declared uncompressed length from the pack entry.
+    pub ulen: u32,
+    /// True iff the entry inflated AND `data.len() == ulen` (python prints a
+    /// `!! size mismatch` note whenever `data.len() != ulen`).
     pub size_ok: bool,
 }
 
@@ -245,8 +251,10 @@ pub fn extract_v2(sl: &[u8], v2_key_path: &Path) -> Result<ExtractV2, Error> {
                     return Err(Error::PathTraversal(pf.name.clone()));
                 }
                 files.push(ExtractedFile {
+                    name: pf.name.clone(),
                     rel_path: rel.to_string(),
                     data,
+                    ulen: pf.ulen,
                     size_ok,
                 });
             }

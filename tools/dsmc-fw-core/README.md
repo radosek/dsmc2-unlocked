@@ -28,13 +28,75 @@ uses to *decrypt* are the public OAEP-unwrap keys already shipped in
 `tools/fw-crypto/` (`fw_v2_privkey.der` / `fw_v3_privkey.der`); callers pass their
 path, and this crate only ever *decrypts* with them.
 
+## Runnable CLI (`dsmc-fw-core`)
+
+The crate ships a thin public binary over the lib's read functions:
+
+```
+dsmc-fw-core unpack --list   <combo.bin>
+dsmc-fw-core unpack --extract [TYPE] [--out DIR] [--keys DIR] <combo.bin>
+dsmc-fw-core preset read     <file.preset>
+dsmc-fw-core preset build    <out.preset> <version> NAME=VALUE [NAME=VALUE ...]
+dsmc-fw-core recovery list   <PREFIX>                 # PREFIX_spare.bin + PREFIX_hdr.bin
+dsmc-fw-core recovery list   --raw <FILE> [--stride N]
+```
+
+It is **read/decrypt only**: no signing, no package-build, no flashing, and it
+prints no keys.
+
+### Key resolution (no cwd-search, no hardcoded path)
+`unpack` needs the public OAEP keys. It resolves them, in order:
+1. `--keys <DIR>`,
+2. `$DSMC_FW_KEYS`,
+3. the `fw-crypto/` directory **discovered relative to the executable** (the
+   crate lives at `tools/dsmc-fw-core/`, so `tools/fw-crypto/` is a fixed
+   relative hop from the installed binary).
+
+It never searches the current working directory and never falls back to a
+hardcoded absolute path; a missing/wrong key dir produces a clean error.
+
 ## Build / test
 ```
 cargo build --release
-cargo test --release      # 18 unit + 1 integration, all pure (no camera)
+cargo test --release      # 19 unit + 5 CLI + 1 integration, all pure (no camera)
+```
+The `unpack` CLI parity test runs against a real combo when
+`DSMC_FW_TEST_COMBO=<combo.bin>` is set, and skips cleanly otherwise.
+
+## Removal-readiness — Rust CLI ⇄ python parity
+
+Each public python tool now has a byte-for-byte Rust replacement. Parity was
+run on real inputs (combo `combo_7.4.1.bin`, real `.preset` files, real NAND
+spare/hdr dumps):
+
+| python tool | Rust replacement | parity proof (real input) | status |
+|---|---|---|---|
+| `fw-crypto/unpack_combo.py --list` | `dsmc-fw-core unpack --list` | combo TOC + standalone-v2 header listings `diff`-identical | ✅ safe to remove |
+| `fw-crypto/unpack_combo.py --extract` | `dsmc-fw-core unpack --extract` | `diff -r` of extracted trees **byte-identical** (combo slice 0x16: 414 files + bootloader; standalone v2 0x15: 414 files); bootloader sha256 + section summary identical | ✅ safe to remove |
+| `preset/red_preset.py read` | `dsmc-fw-core preset read` | identical `version:`/`name = value` output on every applicable preset (e.g. `SHELL_v2` 3 lines, `motion_camera` 298 lines); non-scheme files rejected by both | ✅ safe to remove |
+| `preset/red_preset.py make` | `dsmc-fw-core preset build` | cross-read identical (Rust-built reads in python and vice-versa; ciphertext differs only by the clear random per-page nonce, as python's own reruns do) | ✅ safe to remove |
+| `rom-recovery/host/nand_list.py` | `dsmc-fw-core recovery list` | prefix mode `diff`-identical (208 objects / 935 objects on `cam` / `full`) and `--raw` mode identical; full object graph, paths, sizes, sort order, and summary counts match | ✅ safe to remove |
+
+**The python in `tools/fw-crypto/`, `tools/preset/`, and `tools/rom-recovery/host/`
+can be retired once this crate is merged and the parity above holds.** It is NOT
+deleted here — removal is a later coordinated cleanup across all three repos
+(RED / dsmc2-unlocked / dsmc2-sdk) after every tool is verified.
+
+## Cross-repo build note (sibling clones required)
+The PRIVATE `dsmc-fw` CLI (in **dsmc2-sdk**) depends on this crate **and** on
+`dsmc-core` via sibling-relative paths (`../../../dsmc2-unlocked/...`). The two
+repos must therefore be cloned as **siblings**:
+
+```
+<parent>/
+  dsmc2-unlocked/   (this repo — dsmc-fw-core, dsmc-core, public tools)
+  dsmc2-sdk/        (private — dsmc-fw, depends on ../dsmc2-unlocked/...)
 ```
 
-## Keys
+A future option is to switch those path deps to a git submodule or to published
+crates; for now the sibling layout is the build requirement.
+
+## Keys (lib API)
 `package::parse_v2 / parse_v3 / extract_v2` take a path to the public OAEP key.
 `package::default_key_paths(dir)` resolves `fw_v2_privkey.der` / `fw_v3_privkey.der`
 next to a directory (e.g. `tools/fw-crypto/`).
