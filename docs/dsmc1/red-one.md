@@ -36,10 +36,10 @@ Firmware history across the format change:
 
 ## Opening the firmware
 
-Use [tools/redone-su/redone_su_decrypt.py](../../tools/redone-su):
+Use [`dsmc-fw-core redone`](../../tools/dsmc-fw-core):
 
 ```
-python3 redone_su_decrypt.py redone.su out/
+cargo run --manifest-path tools/dsmc-fw-core/Cargo.toml -- redone unpack redone.su --out out/
 ```
 
 It unpacks the tar, AES-decrypts and inflates `redone.1`/`redone.3` into the

@@ -28,10 +28,12 @@ Build 15 (v2.2.x) and earlier shipped the same two payloads in the clear as
 
 ## Use
 
-```
-python3 redone_su_decrypt.py redone.su out/
+The unpacker is Rust, in [`dsmc-fw-core`](../dsmc-fw-core):
+
+```sh
+cd ../dsmc-fw-core
+cargo run -- redone unpack <redone.su> --out out/
 ```
 
 Writes the decrypted, inflated VxWorks image and FPGA bitstream plus the two raw
-signatures into `out/`. Needs `pycryptodome` (`Crypto.Cipher.AES`) or a system
-`openssl` on PATH.
+signatures into `out/`. The embedded AES key is built in; no dependencies.

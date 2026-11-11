@@ -91,8 +91,8 @@ reverse-engineering CLIs live in `dsmc2-sdk`.
 | [tools/dsmc-fw-core/](tools/dsmc-fw-core) | Firmware CLI + lib (Rust): decrypt/unpack packages, read/build `.preset`, list NAND recovery dumps |
 | [tools/dsmc-core/](tools/dsmc-core) | Shared Rust lib: serial shell driver, reply parsers, I2C/UCD maps, baseline model |
 | [tools/fw-crypto/](tools/fw-crypto) | The embedded RSA **decrypt** keys (used by `dsmc-fw-core unpack`) |
-| [tools/red-log-decoder/](tools/red-log-decoder) | Decode + triage the camera log (Python, no deps) |
-| [tools/redone-su/](tools/redone-su) | Unpack RED ONE `redone.su` firmware (PowerPC/VxWorks DSMC1) |
+| [tools/red-log-decoder/](tools/red-log-decoder) | The log XOR pad + cipher proof (decoder is `dsmcdbg log`) |
+| [tools/redone-su/](tools/redone-su) | RED ONE `redone.su` format (unpacker is `dsmc-fw-core redone`) |
 | [tools/rom-recovery/](tools/rom-recovery) | DSMC2 block-0 recovery over the UART3 boot ROM (bare-metal image + rig) |
 | [hardware/serial-bridge/](hardware/serial-bridge) | USB↔CTRL RS232 bridge: RP2040 firmware + wiring |
 | [hardware/display-repair/](hardware/display-repair) | Touch LCD panels, digitizers, connectors, thread inserts |

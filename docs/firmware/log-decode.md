@@ -44,7 +44,7 @@ macOS, Linux, and Windows (`py ...` on Windows).
 Exact, using the published pad (works on short logs too):
 
 ```
-python3 tools/red-log-decoder/decode_direct.py <logfile> [output.txt]
+cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log decode <logfile> [output.txt]
 ```
 
 ```python
@@ -56,10 +56,10 @@ out = bytes(c ^ tbl[i & 0x3FF] for i, c in enumerate(data))
 Or recover the pad from the file itself, no pad file needed:
 
 ```
-python3 tools/red-log-decoder/decode_red_log.py <logfile> [output.txt]
+cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log decode <logfile> [output.txt]
 ```
 
-The whole method is this (`tools/red-log-decoder/decode_red_log.py`):
+The whole method (implemented in `dsmc-core/src/log.rs`, exposed as `dsmcdbg log decode`):
 
 ```python
 from collections import Counter
@@ -124,11 +124,11 @@ messages span more than one line. A second tool rejoins those, splits the boots,
 and triages each one:
 
 ```
-python3 tools/red-log-decoder/red_log_tool.py sessions <decoded.txt>        # list boots
-python3 tools/red-log-decoder/red_log_tool.py analyze  <decoded.txt> -o out/ # per-boot files + SUMMARY.txt
-python3 tools/red-log-decoder/red_log_tool.py digest   <decoded.txt>        # denoised event digest
-python3 tools/red-log-decoder/red_log_tool.py health   <decoded.txt>        # PASS/FAIL on the ISP link per boot
-python3 tools/red-log-decoder/red_log_tool.py diff  <good.txt> <bad.txt>    # compare a working vs a broken boot
+cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log sessions <decoded.txt>        # list boots
+cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log analyze  <decoded.txt> -o out/ # per-boot files + SUMMARY.txt
+cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log digest   <decoded.txt>        # denoised event digest
+cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log health   <decoded.txt>        # PASS/FAIL on the ISP link per boot
+cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log diff  <good.txt> <bad.txt>    # compare a working vs a broken boot
 ```
 
 `analyze` writes one file per boot plus a summary table (line count, duration,
