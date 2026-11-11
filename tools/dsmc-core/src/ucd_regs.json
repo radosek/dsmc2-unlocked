@@ -1,0 +1,97 @@
+{
+  "_about": "Datasheet-derived PMBus register + decode map for the RED DSMC2 UCD power sequencers. Shared by ucd_dump (what to read) and ucd_decode (how to interpret). Command codes cited from TI UCD9090 (SLVSAG6)/UCD90160 (SLVSA95) datasheets and the TI PMBus 1.1/1.2 command reference. UCD9081 (SLUS753) is a DIFFERENT, non-PMBus part kept here only for completeness; on this hardware the live parts are UCD9090 (IOB/ISP) and UCD90160 (sensor) per the FW driver dispatch.",
+
+  "parts": {
+    "UCD9090": {
+      "mfr_model": "UCD9090",
+      "pmbus": true,
+      "max_page": 10,
+      "rails": 10,
+      "page_valid": "0x00..0x0A, plus 0xFF (all pages)",
+      "discriminator": "ucd9090_set_page accepts page < 0x0B; MFR_MODEL (0x9A) ASCII = 'UCD9090'. Live confirm: IC_DEVICE_ID (0xFC) block read.",
+      "fw_driver": "ucd9090_* @0x8069423c.. ; variant id 1 in DAT_81407368"
+    },
+    "UCD90160": {
+      "mfr_model": "UCD90160",
+      "pmbus": true,
+      "max_page": 16,
+      "rails": 16,
+      "page_valid": "0x00..0x10, plus 0xFF (all pages)",
+      "discriminator": "ucd90160_set_page accepts page < 0x11; MFR_MODEL (0x9A) ASCII = 'UCD90160'. 16 valid pages vs 9090's 11 is the definitive offline discriminator.",
+      "fw_driver": "ucd90160_* @0x80694acc.. ; variant id 2 in DAT_81407368"
+    },
+    "UCD9081": {
+      "mfr_model": "UCD9081",
+      "pmbus": false,
+      "max_page": 0,
+      "rails": 8,
+      "note": "NOT PMBus. 8-rail sequencer with a flat 0x00.. register file (RAILxx_* at fixed offsets), not PAGE-based. Different reg map entirely. Present as driver variant id 0 but NOT selected for IOB/ISP/sensor on this build, so not dumped by the paged path. Listed for completeness only.",
+      "fw_driver": "ucd9081_* @0x80693238.."
+    }
+  },
+
+  "_boards_about": "board -> which UCD part + bus/addr. bus = shell logical I2C index. addr = 7-bit. Confirmed: COMPARISON.md (IOB 131-0725 + ISP 131-0724 both UCD9090); FW dispatch DAT_81407368={1,1,2}; live scan bus2.",
+  "boards": {
+    "iob":    {"part": "UCD9090",  "bus": 2, "addr": "0x70", "fw_board_id": 0, "logical_i2c_id": "0x14", "source": "COMPARISON.md IOB 131-0725 UCD9090; scan bus2 0x70; E49 logs ucd9090_reg_write @0x70"},
+    "isp":    {"part": "UCD9090",  "bus": 2, "addr": "0x70", "fw_board_id": 1, "logical_i2c_id": "0x15", "note": "ISP board 131-0724 is also UCD9090 (COMPARISON.md). On a single-head body the ISP/IOB UCD may share bus2 0x70 (IOB carries it) OR the ISP board has its own 0x70 on its own bus head - confirm live with `read ucd isp` + a scan of each bus. Dual-ISP bodies have two.", "source": "COMPARISON.md ISP 131-0724 UCD9090"},
+    "sensor": {"part": "UCD90160", "bus": 2, "addr": "0x65", "fw_board_id": 2, "logical_i2c_id": "0x16", "source": "FW dispatch variant 2 = ucd90160; E49_REFLOW_BENCH_LOG read i2c 2 0x65 (sensor side)"},
+    "lcd7":   {"part": "UNKNOWN",  "bus": 2, "addr": "0x75", "note": "Labeled 'LCD7 Power Monitor' in this session's scan. Determine part live via MFR_MODEL(0x9A)/IC_DEVICE_ID(0xFC). Likely a smaller monitor (UCD9081-class or a non-UCD INA/monitor); not in the power_seq dispatch, so no FW driver variant -> treat generically, read identity first.", "source": "live scan label"},
+    "rsb":    {"part": "UNKNOWN",  "bus": null, "addr": null, "note": "`read ucd rsb` is accepted by the shell. Enumerate its bus/addr with per-bus scans; memory red-board-level says RSB is GPIO-only with no FW binary, so its 'UCD' may be a monitor only."}
+  },
+
+  "vout_mode": {
+    "command": "0x20",
+    "note": "VOUT_MODE. Low 5 bits = signed 2's-complement exponent N (mode bits [7:5]=000 => LINEAR mode). VOUT (READ_VOUT 0x8B, VOUT_COMMAND 0x21, all VOUT limits) are LINEAR16: unsigned 16-bit mantissa V, value = V * 2^N. On UCD9090/90160 N is typically -12 (0x14 in the 5-bit field) => 1 LSB = 2^-12 V ~= 244 uV.",
+    "decode": "exponent = sign_extend_5bit(vout_mode & 0x1F)"
+  },
+
+  "linear11": {
+    "note": "LINEAR11 (used by READ_VIN 0x88, READ_IOUT 0x8C, READ_TEMPERATURE 0x8D, all _LIMIT regs that are not VOUT, TON/TOFF are unsigned ms not LINEAR11). 16-bit word: top 5 bits = signed exponent E, low 11 bits = signed mantissa Y. value = Y * 2^E.",
+    "decode": "Y = sign_extend_11bit(word & 0x7FF); E = sign_extend_5bit(word >> 11); value = Y * 2^E"
+  },
+
+  "registers": [
+    {"name": "PAGE",                 "cmd": "0x00", "len": 1, "rw": "RW", "paged": false, "decode": "page_index", "about": "Selects the rail/page for all paged reads. WRITE this first (write i2c BUS ADDR 0x00 1 N) before reading paged regs. 0xFF = all pages."},
+    {"name": "OPERATION",            "cmd": "0x01", "len": 1, "rw": "RW", "paged": true,  "decode": "bitfield", "about": "On/off/margin control for the selected rail. 0x80=on, 0x00=off; margin bits [3:2]. (This is the reg FUN_8069446c writes to enable a rail.)"},
+    {"name": "ON_OFF_CONFIG",        "cmd": "0x02", "len": 1, "rw": "RW", "paged": true,  "decode": "bitfield", "about": "How the rail turns on (CONTROL pin vs OPERATION cmd)."},
+    {"name": "VOUT_MODE",            "cmd": "0x20", "len": 1, "rw": "R",  "paged": true,  "decode": "vout_mode", "about": "Exponent for LINEAR16 VOUT on this page. Read once per page to decode all VOUT values."},
+    {"name": "VOUT_COMMAND",         "cmd": "0x21", "len": 2, "rw": "RW", "paged": true,  "decode": "linear16", "about": "Nominal/target output voltage for the rail."},
+    {"name": "VOUT_MARGIN_HIGH",     "cmd": "0x25", "len": 2, "rw": "RW", "paged": true,  "decode": "linear16", "about": "Margined-high test voltage."},
+    {"name": "VOUT_MARGIN_LOW",      "cmd": "0x26", "len": 2, "rw": "RW", "paged": true,  "decode": "linear16", "about": "Margined-low test voltage."},
+    {"name": "VOUT_OV_FAULT_LIMIT",  "cmd": "0x40", "len": 2, "rw": "RW", "paged": true,  "decode": "linear16", "about": "Over-voltage FAULT threshold. Rail shuts/faults above this."},
+    {"name": "VOUT_OV_WARN_LIMIT",   "cmd": "0x42", "len": 2, "rw": "RW", "paged": true,  "decode": "linear16", "about": "Over-voltage WARN threshold."},
+    {"name": "VOUT_UV_WARN_LIMIT",   "cmd": "0x43", "len": 2, "rw": "RW", "paged": true,  "decode": "linear16", "about": "Under-voltage WARN threshold."},
+    {"name": "VOUT_UV_FAULT_LIMIT",  "cmd": "0x44", "len": 2, "rw": "RW", "paged": true,  "decode": "linear16", "about": "Under-voltage FAULT threshold. Rail faults below this - the usual power-seq boot killer."},
+    {"name": "IOUT_OC_FAULT_LIMIT",  "cmd": "0x46", "len": 2, "rw": "RW", "paged": true,  "decode": "linear11", "about": "Over-current fault limit (if the rail has current sense)."},
+    {"name": "IOUT_OC_WARN_LIMIT",   "cmd": "0x4A", "len": 2, "rw": "RW", "paged": true,  "decode": "linear11", "about": "Over-current warn limit."},
+    {"name": "OT_FAULT_LIMIT",       "cmd": "0x4F", "len": 2, "rw": "RW", "paged": true,  "decode": "linear11", "about": "Over-temperature fault limit."},
+    {"name": "POWER_GOOD_ON",        "cmd": "0x5E", "len": 2, "rw": "RW", "paged": true,  "decode": "linear16", "about": "Voltage at/above which this rail is declared power-good."},
+    {"name": "POWER_GOOD_OFF",       "cmd": "0x5F", "len": 2, "rw": "RW", "paged": true,  "decode": "linear16", "about": "Voltage at/below which power-good deasserts."},
+    {"name": "TON_DELAY",            "cmd": "0x60", "len": 2, "rw": "RW", "paged": true,  "decode": "linear11_ms", "about": "Turn-ON delay (ms) after this rail is commanded on = the SEQUENCING order knob. Lower = earlier in the sequence."},
+    {"name": "TON_RISE",             "cmd": "0x61", "len": 2, "rw": "RW", "paged": true,  "decode": "linear11_ms", "about": "Ramp time from 0 to regulation (ms)."},
+    {"name": "TON_MAX_FAULT_LIMIT",  "cmd": "0x62", "len": 2, "rw": "RW", "paged": true,  "decode": "linear11_ms", "about": "Max time to reach power-good or fault (ms). A rail that never comes up trips this."},
+    {"name": "TOFF_DELAY",           "cmd": "0x64", "len": 2, "rw": "RW", "paged": true,  "decode": "linear11_ms", "about": "Turn-OFF delay (ms) = power-down sequence order."},
+    {"name": "STATUS_BYTE",          "cmd": "0x78", "len": 1, "rw": "R",  "paged": true,  "decode": "status_byte", "about": "Abbreviated per-rail status."},
+    {"name": "STATUS_WORD",          "cmd": "0x79", "len": 2, "rw": "R",  "paged": true,  "decode": "status_word", "about": "Summary of all fault groups for the selected rail. Non-zero = something is wrong on this rail."},
+    {"name": "STATUS_VOUT",          "cmd": "0x7A", "len": 1, "rw": "R",  "paged": true,  "decode": "status_vout", "about": "Per-rail OV/UV fault+warn bits. THE key reg for 'which rail dropped'. bit7=OV_FAULT bit6=OV_WARN bit5=UV_WARN bit4=UV_FAULT."},
+    {"name": "STATUS_IOUT",          "cmd": "0x7B", "len": 1, "rw": "R",  "paged": true,  "decode": "status_iout", "about": "Over-current fault/warn bits."},
+    {"name": "STATUS_INPUT",         "cmd": "0x7C", "len": 1, "rw": "R",  "paged": false, "decode": "status_input", "about": "Input (VIN) UV/OV + unit-off bits. Device-global."},
+    {"name": "STATUS_TEMPERATURE",   "cmd": "0x7D", "len": 1, "rw": "R",  "paged": true,  "decode": "status_temp", "about": "Over-temp fault/warn bits."},
+    {"name": "STATUS_CML",           "cmd": "0x7E", "len": 1, "rw": "R",  "paged": false, "decode": "status_cml", "about": "Comms/memory/logic fault (bad command, bad data, flash fault)."},
+    {"name": "STATUS_MFR_SPECIFIC",  "cmd": "0x80", "len": 1, "rw": "R",  "paged": true,  "decode": "hex", "about": "TI-specific rail status (GPI-driven faults, resequence errors)."},
+    {"name": "READ_VIN",             "cmd": "0x88", "len": 2, "rw": "R",  "paged": false, "decode": "linear11", "about": "Measured input voltage (device-global)."},
+    {"name": "READ_VOUT",            "cmd": "0x8B", "len": 2, "rw": "R",  "paged": true,  "decode": "linear16", "about": "Measured output voltage of the selected rail. Compare against VOUT_COMMAND and the UV/OV limits."},
+    {"name": "READ_IOUT",            "cmd": "0x8C", "len": 2, "rw": "R",  "paged": true,  "decode": "linear11", "about": "Measured rail current (if sensed)."},
+    {"name": "READ_TEMPERATURE_1",   "cmd": "0x8D", "len": 2, "rw": "R",  "paged": true,  "decode": "linear11", "about": "Temperature (internal or external sensor)."},
+    {"name": "MFR_ID",               "cmd": "0x99", "len": 8, "rw": "R",  "paged": false, "decode": "ascii", "about": "ASCII 'TI'. Read block (or 1 byte at a time on the shell)."},
+    {"name": "MFR_MODEL",            "cmd": "0x9A", "len": 9, "rw": "R",  "paged": false, "decode": "ascii", "about": "ASCII part model, e.g. 'UCD9090' / 'UCD90160'. PRIMARY part-per-address discriminator."},
+    {"name": "MFR_REVISION",         "cmd": "0x9B", "len": 2, "rw": "R",  "paged": false, "decode": "ascii", "about": "Silicon/firmware revision."},
+    {"name": "IC_DEVICE_ID",         "cmd": "0xFC", "len": 32,"rw": "R",  "paged": false, "decode": "hex", "about": "Block read: TI device-id string identifying the exact UCD die. Secondary discriminator / live part confirm."},
+    {"name": "IC_DEVICE_REV",        "cmd": "0xFD", "len": 32,"rw": "R",  "paged": false, "decode": "hex", "about": "Device revision block."},
+
+    {"name": "MFR_GPO_SELECT",       "cmd": "0xFA", "len": 1, "rw": "RW", "paged": true,  "decode": "hex", "about": "TI MFR-specific: select which GPO to configure. (FW ucd9090_enable_gpo writes 0xFA then 0xFB.)"},
+    {"name": "MFR_GPO_CONFIG",       "cmd": "0xFB", "len": 1, "rw": "RW", "paged": true,  "decode": "gpo_config", "about": "TI MFR-specific: configure/drive the selected GPO. bit3 = GPO state readback (FW polls this). These GPOs gate downstream enables = part of the sequencing/dependency fabric."}
+  ],
+
+  "mfr_sequencing_note": "UCD9090/90160 store the full rail-sequencing + PGOOD/GPI dependency fabric (RAIL-to-RAIL 'sequence on/off dependencies', GPI fault responses, GPO logic, resequence timing) in device CONFIG, not in the standard PMBus command set. TI exposes them through MFR_SPECIFIC commands in the 0xD0..0xFF range (e.g. GPIO config 0xFA/0xFB above; the rest are documented register-by-register only in the TI 'UCDxxxx PMBus Command Reference' app notes, and are easiest to read/write with TI Fusion Digital Power GUI). The firmware here only ever drives OPERATION (0x01) + GPO (0xFA/0xFB) + PAGE (0x00) + reads voltages/status; it does NOT reprogram the dependency fabric at runtime - that config is burned at the factory into UCD flash via STORE_DEFAULT_ALL (0x11). So for sequencing analysis: TON_DELAY/TOFF_DELAY (0x60/0x64) per page give the time-ordered sequence directly, and the GPO/GPI dependency detail needs Fusion GUI + the TI command-ref app note (cited, not re-derived here). For boot-failure triage the per-page TON_DELAY ordering + STATUS_VOUT + READ_VOUT are sufficient and fully shell-readable."
+}

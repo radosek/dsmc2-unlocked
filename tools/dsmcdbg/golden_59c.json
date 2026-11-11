@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "body": "XXX-XXX-59C",
+  "captured": "2026-11-11",
+  "_source": "research/bench/BASELINE_59C_GOLDEN.md + live `test voltage all` capture on the healthy 59C. Voltage windows are the measured value +/- ~3% (min 0.05V), widened where the rail reads naturally loose. Rail names are the EXACT strings `test voltage all` prints (board + nominal), so they key uniquely.",
+
+  "system_state": { "expect": 10, "name": "READY_TO_RECORD" },
+  "versions": { "isp": "D0", "iob": "B0" },
+  "dragon_id": "0xE0",
+  "heartbeat_expect_nonzero": true,
+
+  "voltages": {
+    "IOB/Vcc 1.0":        [0.96, 1.06],
+    "IOB/Vcc 1.5":        [1.44, 1.56],
+    "IOB/Vio_DV 1.8":     [1.74, 1.87],
+    "IOB/Vcc 2.5":        [2.42, 2.58],
+    "IOB/Vcc_DV 3.3":     [3.17, 3.40],
+    "IOB/Vcc 5.0":        [4.80, 5.15],
+
+    "ISP/Vcc_Isp 0.9":    [0.87, 0.94],
+    "ISP/Vcc_IspAVDD 0.9":[0.87, 0.94],
+    "ISP/Vcc_Pll 1.5":    [1.47, 1.57],
+    "ISP/Vcc_AVDD 1.5":   [1.42, 1.53],
+    "ISP/Vcc_Isp 1.5":    [1.45, 1.55],
+    "ISP/Vref_Isp 0.75":  [0.72, 0.78],
+    "ISP/Vtt_Isp 0.75":   [0.71, 0.77],
+    "ISP/Vcc_Isp 1.8":    [1.74, 1.86],
+    "ISP/Vcc_Isp 2.5":    [2.41, 2.57],
+
+    "Sensor/Vdd_Tx 5.0":   [4.60, 5.00],
+    "Sensor/Vdd 1.8":      [1.74, 1.86],
+    "Sensor/Vdda_Pix 5.0": [4.60, 4.95],
+    "Sensor/Vref_Adc 2.5": [2.10, 2.30],
+    "Sensor/Vdda_Ramp":    [1.80, 2.00],
+    "Sensor/Vdda 1.8":     [1.72, 1.85],
+    "Sensor/Vdda 5.0":     [4.80, 5.10],
+    "Sensor/Vdd_Boost":    [5.55, 6.00],
+    "Sensor/VanaLogOut":   [0.70, 0.82],
+    "Sensor/Vdda_S 5.0":   [4.25, 4.65],
+    "Sensor/Vdd 5.0":      [4.80, 5.10],
+    "Sensor/GVDD 0.4":     [0.37, 0.43],
+    "Sensor/PARKAV 5.0":   [4.40, 4.80]
+  },
+
+  "temps": {
+    "IOB":        [35, 70],
+    "ISP":        [35, 70],
+    "Img Sensor": [25, 55],
+    "FPGA":       [40, 80],
+    "RSB":        [25, 60],
+    "Ambient":    [15, 45],
+    "LSB":        [35, 75]
+  },
+
+  "x12_all_pass": true,
+  "x4_all_pass": true,
+
+  "ucd_status_vout_ok": ["iob", "isp", "sensor"],
+  "ddr_expect_pass": ["iob", "isp1"],
+
+  "i2c_present": [
+    "bus1:0x38", "bus1:0x45", "bus1:0x48", "bus1:0x49", "bus1:0x4D", "bus1:0x52", "bus1:0x7C",
+    "bus2:0x22", "bus2:0x48", "bus2:0x4C", "bus2:0x65", "bus2:0x67", "bus2:0x6C", "bus2:0x70",
+    "bus3:0x3B", "bus3:0x48", "bus3:0x57", "bus3:0x6E"
+  ],
+
+  "expected_fail": [
+    { "signal": "reg 0x88900034", "value": "0x0",
+      "why": "ISP1 0x88900034=0x0 post-boot is NORMAL (ISP2=0xd0). The boot GATE reads it early pre-ISP1-ready; steady state is 0. Not a fault." },
+    { "signal": "test isp xaui-loopback", "match": "FAILED",
+      "why": "`test isp` Xaui Near/PCS LoopBack reports FAILED on the healthy 59C too ('Reading XAUI interrupt register failed'). Use test x12/x4 lane status instead." },
+    { "signal": "test ram isp0", "match": "Address Complement Pattern - Fail",
+      "why": "ISP0 DDR pattern-fail is NORMAL on the healthy 59C (ISP1 DDR passes, IOB DDR passes, camera records). ISP0 is not the active DDR path. Never a fault." }
+  ],
+
+  "i2c_informational": [
+    { "signal": "bus2:0x47",
+      "why": "Unidentified device (reg0=0x9021, no PMBus IC_DEVICE_ID). Present on both the 59C and cam2. Presence only, not a fault." }
+  ]
+}

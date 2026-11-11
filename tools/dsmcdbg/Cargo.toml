@@ -1,0 +1,18 @@
+[package]
+name = "dsmcdbg"
+version = "0.1.0"
+edition = "2021"
+description = "Public read-only debug CLI for RED DSMC2 cameras. One tool over the dsh serial shell: selftest (capture full per-board state + assert vs a golden data file, PASS/FAIL table, exit code = health), baseline capture/diff, and thin per-area reads (voltage, temp, x12, x4, state, env, i2c, ucd, reg, ddr, heartbeat, diag). No firmware build/patch/sign/flash — diagnose only."
+license = "MIT"
+repository = "https://github.com/_personal/dsmc2-unlocked"
+
+[dependencies]
+dsmc-core = { path = "../dsmc-core" }
+serde_json = "1.0.140"
+
+[[bin]]
+name = "dsmcdbg"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3

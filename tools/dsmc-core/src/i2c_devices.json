@@ -1,0 +1,1336 @@
+{
+ "_about": "RED DSMC2 complete I2C device topology, extracted from FW 7.4.1 app. Source of truth for tools/i2cmap.",
+ "_source": "enum descriptor table @0x810fb508 (56 records x44B, grouped by board class) + bus/addr index table @0x81473ee0 (stride 8: [0]=bus [4]=7bit addr). Scan handler FUN_809cbff8 (test i2c), per-group FUN_809cc860 reads reg0, compares byte0 to scan_expected_id (0=skip).",
+ "_bus_note": "FW table 'bus' is the single-head default wiring. On a real body the active bus depends on which head carries the class; use the fw_class scan filter (test i2c scan <class>), not the raw bus number, to target a device. Live cam2 bus2 scan matched the rear-*/bus2 entries.",
+ "_confidence": "confirmed = FW driver name or datasheet-exact; likely = address convention + behavior; guess = address only, part not pinned.",
+ "_ucd_xref": "Power sequencers (UCD9090 @0x70, UCD90160 @0x65) and lcd7 power monitor @0x75 are decoded in detail by tools/ucd (ucd_regs.json). i2cmap references them; it does not duplicate PMBus register decode.",
+ "devices": [
+  {
+   "fw_class": "iob",
+   "bus": 0,
+   "addr": 124,
+   "label": "Power Sequencer, IOB",
+   "part": "TI UCD9090",
+   "confidence": "confirmed",
+   "function": "IOB-board power-rail sequencer (PMBus)",
+   "key_registers": [
+    {
+     "name": "MFR_MODEL",
+     "reg": "0x9A",
+     "note": ""
+    },
+    {
+     "name": "IC_DEVICE_ID",
+     "reg": "0xFC",
+     "note": ""
+    },
+    {
+     "name": "STATUS_WORD",
+     "reg": "0x79",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 2,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 21,
+   "notes": "COMPARISON.md IOB 131-0725 = UCD9090. See tools/ucd."
+  },
+  {
+   "fw_class": "iob",
+   "bus": 2,
+   "addr": 110,
+   "label": "Clk Synthesizer, DDR/PLL",
+   "part": "I2C clock generator (part TBD)",
+   "confidence": "guess",
+   "function": "IOB DDR/PLL reference clock synth",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": "read len1 at reg0"
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 15,
+   "notes": "IOB bus2 0x6e. No named FW driver; part not pinned. GUESS."
+  },
+  {
+   "fw_class": "iob",
+   "bus": 2,
+   "addr": 72,
+   "label": "Power Companion",
+   "part": "TI power companion (TPS6590x-class)",
+   "confidence": "guess",
+   "function": "IOB companion PMIC",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 24,
+   "notes": "IOB bus2 0x48. GUESS."
+  },
+  {
+   "fw_class": "iob",
+   "bus": 2,
+   "addr": 87,
+   "label": "SDI Serializer",
+   "part": "HD/3G-SDI serializer (part TBD)",
+   "confidence": "guess",
+   "function": "IOB SDI video-out serializer",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 14,
+   "notes": "IOB bus2 0x57. GUESS (Gennum/Semtech-class)."
+  },
+  {
+   "fw_class": "iob",
+   "bus": 0,
+   "addr": 73,
+   "label": "IOB, Temp Sensor",
+   "part": "I2C temperature sensor (LM75/TMP class)",
+   "confidence": "likely",
+   "function": "IOB board temperature",
+   "key_registers": [
+    {
+     "name": "TEMP",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 4,
+   "notes": "0x49, LM75-family address range."
+  },
+  {
+   "fw_class": "iob",
+   "bus": 2,
+   "addr": 59,
+   "label": "Audio Codec",
+   "part": "I2C audio codec",
+   "confidence": "likely",
+   "function": "IOB audio codec",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": "scan expects 0x0c at reg0"
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": 12,
+   "addr_16bit": true,
+   "no_response_ok": false,
+   "fw_index": 46,
+   "notes": "IOB bus2 0x3b, FW-expected id 0x0c. 'Audio Codec' label; TLV320-class LIKELY."
+  },
+  {
+   "fw_class": "isp",
+   "bus": 1,
+   "addr": 112,
+   "label": "Power Sequencer, ISP",
+   "part": "TI UCD9090",
+   "confidence": "confirmed",
+   "function": "ISP-board power-rail sequencer/monitor (PMBus)",
+   "key_registers": [
+    {
+     "name": "MFR_MODEL",
+     "reg": "0x9A",
+     "note": "ASCII 'UCD9090'"
+    },
+    {
+     "name": "IC_DEVICE_ID",
+     "reg": "0xFC",
+     "note": "TI device id"
+    },
+    {
+     "name": "STATUS_WORD",
+     "reg": "0x79",
+     "note": "fault summary"
+    }
+   ],
+   "scan_read_len": 2,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 20,
+   "notes": "In the power_seq FW dispatch (variant). See tools/ucd for full PMBus decode. On a real body usually scanned on bus2 0x70."
+  },
+  {
+   "fw_class": "isp",
+   "bus": 1,
+   "addr": 72,
+   "label": "ISP, Temp SensorP",
+   "part": "I2C temperature sensor (LM75/TMP class)",
+   "confidence": "likely",
+   "function": "ISP board temperature",
+   "key_registers": [
+    {
+     "name": "TEMP",
+     "reg": "0x00",
+     "note": "read temperature register (len1 in scan; full read is 2-byte temp)"
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 6,
+   "notes": "0x48 is the classic LM75/TMP10x/ADT7xx base address. Part not pinned in FW. LIKELY LM75-family."
+  },
+  {
+   "fw_class": "isp",
+   "bus": 1,
+   "addr": 108,
+   "label": "Clk Synthesizer, ISP",
+   "part": "Silicon Labs Si5346",
+   "confidence": "confirmed",
+   "function": "ISP jitter-attenuating clock synthesizer",
+   "key_registers": [
+    {
+     "name": "PAGE",
+     "reg": "0x01",
+     "note": "register page select"
+    },
+    {
+     "name": "DEVICE_ID",
+     "reg": "via page 0x0 reg 0x02/0x03",
+     "note": "Si5346 part id"
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 45,
+   "notes": "Confirmed Si5346 @0x6C (memory red-e49-*; session). Reg space is paged."
+  },
+  {
+   "fw_class": "sensor(dragon)",
+   "bus": 1,
+   "addr": 73,
+   "label": "Sensor, DAC",
+   "part": "TI DAC7578",
+   "confidence": "confirmed",
+   "function": "Sensor bias/reference DAC (8-ch 12-bit)",
+   "key_registers": [
+    {
+     "name": "DAC_CH",
+     "reg": "0x00..0x07",
+     "note": "per-channel write; chan N = 0x30|N on write"
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 28,
+   "notes": "Driver isensor_dac_ti7578_* (isnsrdac.c) => TI DAC7578. 0x49."
+  },
+  {
+   "fw_class": "sensor(dragon)",
+   "bus": 1,
+   "addr": 75,
+   "label": "Sensor, DAC2",
+   "part": "TI DAC7578",
+   "confidence": "confirmed",
+   "function": "Sensor bias/reference DAC #2 (8-ch 12-bit)",
+   "key_registers": [
+    {
+     "name": "DAC_CH",
+     "reg": "0x00..0x07",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 66,
+   "notes": "Second DAC7578 @0x4B (idx 66). Same driver."
+  },
+  {
+   "fw_class": "sensor",
+   "bus": 1,
+   "addr": 101,
+   "label": "Sensor, Power Sequencer",
+   "part": "TI UCD90160",
+   "confidence": "confirmed",
+   "function": "Sensor-board 16-rail power sequencer (PMBus)",
+   "key_registers": [
+    {
+     "name": "MFR_MODEL",
+     "reg": "0x9A",
+     "note": "ASCII 'UCD90160'"
+    },
+    {
+     "name": "IC_DEVICE_ID",
+     "reg": "0xFC",
+     "note": ""
+    },
+    {
+     "name": "STATUS_WORD",
+     "reg": "0x79",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 2,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 22,
+   "notes": "FW power_seq dispatch variant 2 = ucd90160. See tools/ucd."
+  },
+  {
+   "fw_class": "sensor",
+   "bus": 1,
+   "addr": 34,
+   "label": "Sensor, Temp Sensor",
+   "part": "I2C temperature sensor (LM75/TMP class)",
+   "confidence": "likely",
+   "function": "Sensor board temperature",
+   "key_registers": [
+    {
+     "name": "TEMP",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 5,
+   "notes": "0x22. LM75/TMP-class address."
+  },
+  {
+   "fw_class": "sensor",
+   "bus": 1,
+   "addr": 73,
+   "label": "Sensor, DAC",
+   "part": "TI DAC7578",
+   "confidence": "confirmed",
+   "function": "Sensor bias/reference DAC (8-ch 12-bit)",
+   "key_registers": [
+    {
+     "name": "DAC_CH",
+     "reg": "0x00..0x07",
+     "note": "per-channel write; chan N = 0x30|N on write"
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 28,
+   "notes": "Driver isensor_dac_ti7578_* (isnsrdac.c) => TI DAC7578. 0x49."
+  },
+  {
+   "fw_class": "sensor",
+   "bus": 1,
+   "addr": 75,
+   "label": "Sensor, DAC2",
+   "part": "TI DAC7578",
+   "confidence": "confirmed",
+   "function": "Sensor bias/reference DAC #2 (8-ch 12-bit)",
+   "key_registers": [
+    {
+     "name": "DAC_CH",
+     "reg": "0x00..0x07",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 66,
+   "notes": "Second DAC7578 @0x4B (idx 66). Same driver."
+  },
+  {
+   "fw_class": "rsb",
+   "bus": 0,
+   "addr": 72,
+   "label": "RSB, Temp Sensor,",
+   "part": "I2C temperature sensor (LM75/TMP class)",
+   "confidence": "likely",
+   "function": "Rear-sensor-board temperature",
+   "key_registers": [
+    {
+     "name": "TEMP",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 8,
+   "notes": "0x48 on bus0."
+  },
+  {
+   "fw_class": "rsb",
+   "bus": 0,
+   "addr": 82,
+   "label": "RSB, Ambient Temp Sensor",
+   "part": "I2C temperature sensor (LM75/TMP class)",
+   "confidence": "likely",
+   "function": "Ambient temperature",
+   "key_registers": [
+    {
+     "name": "TEMP",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 9,
+   "notes": "0x52 on bus0."
+  },
+  {
+   "fw_class": "rsb",
+   "bus": 0,
+   "addr": 69,
+   "label": "RSB, LED Driver",
+   "part": "I2C LED driver (part TBD)",
+   "confidence": "guess",
+   "function": "Rear status/indicator LED driver",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 17,
+   "notes": "0x45 on bus0. No named driver; GUESS."
+  },
+  {
+   "fw_class": "rsb",
+   "bus": 0,
+   "addr": 77,
+   "label": "RSB, Fan Driver",
+   "part": "I2C fan-speed controller (part TBD)",
+   "confidence": "guess",
+   "function": "Cooling fan PWM/tach controller",
+   "key_registers": [
+    {
+     "name": "FAN_SPEED",
+     "reg": "via fanspeed cfg",
+     "note": "FW set/get fan speed 1..92%"
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 23,
+   "notes": "0x4D on bus0. fandrvr_test_menu drives set/get fan speed %. Part not pinned; EMC2xxx/MAX31790-class GUESS."
+  },
+  {
+   "fw_class": "rsb",
+   "bus": 0,
+   "addr": 56,
+   "label": "RSB, OLPF Reg",
+   "part": "I2C GPIO/register expander (OLPF motor control)",
+   "confidence": "likely",
+   "function": "OLPF (optical low-pass filter) swap mechanism register",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 47,
+   "notes": "0x38 on bus0. memory red-patch-safety notes OLPF = env/gpio. Register/expander."
+  },
+  {
+   "fw_class": "lsb",
+   "bus": 1,
+   "addr": 76,
+   "label": "LSB, FPGA Temp Sensor",
+   "part": "Xilinx Kintex-7 XADC via I2C / on-FPGA temp monitor",
+   "confidence": "likely",
+   "function": "LSB FPGA (XC7K325T) die temperature",
+   "key_registers": [
+    {
+     "name": "ID",
+     "reg": "0x00",
+     "note": "scan expects 0x55 at reg0 = presence/ID byte"
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": 85,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 7,
+   "notes": "0x4C with FW-expected ID 0x55. LSB = Kintex-7 (memory red-board-level-complete). Likely the FPGA's own I2C temp/XADC bridge."
+  },
+  {
+   "fw_class": "lsb",
+   "bus": 1,
+   "addr": 103,
+   "label": "LSB, Video Clk Gen",
+   "part": "I2C programmable clock generator (IDT/Si-class)",
+   "confidence": "likely",
+   "function": "LSB video pixel-clock generator (set/get frequency via FW)",
+   "key_registers": [
+    {
+     "name": "ID",
+     "reg": "0x00",
+     "note": "scan expects 0xC0 at reg0"
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": 192,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 18,
+   "notes": "0x67, FW-expected ID 0xC0. clksyn_test_menu drives set/get frequency. Part not pinned; IDT/Silabs programmable-clock class."
+  },
+  {
+   "fw_class": "lcd",
+   "bus": 1,
+   "addr": 80,
+   "label": "LCD",
+   "part": "LCD module controller",
+   "confidence": "likely",
+   "function": "7-inch LCD module id/control",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 2,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 1,
+   "notes": "0x50 module address."
+  },
+  {
+   "fw_class": "lcd",
+   "bus": 1,
+   "addr": 32,
+   "label": "LCD, Touch Screen Controller",
+   "part": "Capacitive touch controller",
+   "confidence": "likely",
+   "function": "7-inch LCD touch",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 13,
+   "notes": "0x20."
+  },
+  {
+   "fw_class": "lcd",
+   "bus": 1,
+   "addr": 77,
+   "label": "LCD, Touch Screen Controller 9\"",
+   "part": "Touch controller (9-inch panel)",
+   "confidence": "likely",
+   "function": "9-inch LCD touch",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 2,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": true,
+   "fw_index": 12,
+   "notes": "0x4D, 16-bit addressing (addr_16bit flag)."
+  },
+  {
+   "fw_class": "rear-lcd",
+   "bus": 2,
+   "addr": 80,
+   "label": "Rear LCD",
+   "part": "LCD module controller",
+   "confidence": "likely",
+   "function": "7-inch LCD module id/control",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 2,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 0,
+   "notes": "0x50 module address."
+  },
+  {
+   "fw_class": "rear-lcd",
+   "bus": 2,
+   "addr": 32,
+   "label": "Rear Touch Screen Controller",
+   "part": "Capacitive touch controller",
+   "confidence": "likely",
+   "function": "rear LCD touch",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 11,
+   "notes": "0x20. Same class as front LCD touch."
+  },
+  {
+   "fw_class": "rear-lcd",
+   "bus": 2,
+   "addr": 77,
+   "label": "Rear Touch Screen, 9\"",
+   "part": "Touch controller (9-inch panel)",
+   "confidence": "likely",
+   "function": "9-inch rear LCD touch",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 2,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": true,
+   "fw_index": 10,
+   "notes": "0x4D, 16-bit addressing. Same class as front LCD 9\" touch."
+  },
+  {
+   "fw_class": "evf",
+   "bus": 1,
+   "addr": 80,
+   "label": "EVF Module",
+   "part": "EVF module controller",
+   "confidence": "likely",
+   "function": "Electronic viewfinder module",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 2,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 1,
+   "notes": "0x50."
+  },
+  {
+   "fw_class": "evf",
+   "bus": 1,
+   "addr": 60,
+   "label": "EVF Button Reg",
+   "part": "I2C button/GPIO register",
+   "confidence": "likely",
+   "function": "EVF button register",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": true,
+   "fw_index": 3,
+   "notes": "0x3C."
+  },
+  {
+   "fw_class": "rear-evf",
+   "bus": 2,
+   "addr": 80,
+   "label": "Rear EVF Module",
+   "part": "EVF module controller",
+   "confidence": "likely",
+   "function": "Electronic viewfinder module",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 2,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 0,
+   "notes": "0x50."
+  },
+  {
+   "fw_class": "rear-evf",
+   "bus": 2,
+   "addr": 60,
+   "label": "Rear EVF Button Reg",
+   "part": "I2C button/GPIO register",
+   "confidence": "likely",
+   "function": "EVF button register",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": true,
+   "fw_index": 2,
+   "notes": "0x3C."
+  },
+  {
+   "fw_class": "lcd7",
+   "bus": 1,
+   "addr": 80,
+   "label": "LCD7, EDID",
+   "part": "EDID EEPROM",
+   "confidence": "likely",
+   "function": "LCD7 EDID EEPROM",
+   "key_registers": [
+    {
+     "name": "EDID",
+     "reg": "0x00",
+     "note": "128-byte EDID blob"
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 29,
+   "notes": "0x50. Standard DDC/EDID EEPROM address."
+  },
+  {
+   "fw_class": "lcd7",
+   "bus": 1,
+   "addr": 39,
+   "label": "LCD7, GPIO Exp",
+   "part": "I2C GPIO expander",
+   "confidence": "likely",
+   "function": "LCD7 GPIO expander",
+   "key_registers": [
+    {
+     "name": "INPUT",
+     "reg": "0x00",
+     "note": ""
+    },
+    {
+     "name": "OUTPUT",
+     "reg": "0x01",
+     "note": ""
+    },
+    {
+     "name": "CONFIG",
+     "reg": "0x03",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 30,
+   "notes": "0x27. PCA9xxx/TCA-class."
+  },
+  {
+   "fw_class": "lcd7",
+   "bus": 1,
+   "addr": 109,
+   "label": "LCD7, GEO",
+   "part": "Geometry/scaler IC",
+   "confidence": "guess",
+   "function": "LCD7 geometry/scaler",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 31,
+   "notes": "0x6D. GUESS."
+  },
+  {
+   "fw_class": "lcd7",
+   "bus": 1,
+   "addr": 14,
+   "label": "LCD7, Toshiba",
+   "part": "Toshiba TC358xx LVDS/bridge",
+   "confidence": "likely",
+   "function": "LCD7 Toshiba display bridge",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 32,
+   "notes": "0x0E. 'Toshiba' label => TC358-class DSI/LVDS bridge."
+  },
+  {
+   "fw_class": "lcd7",
+   "bus": 1,
+   "addr": 44,
+   "label": "LCD7, Backlight",
+   "part": "I2C backlight LED driver",
+   "confidence": "likely",
+   "function": "LCD7 backlight controller",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 33,
+   "notes": "0x2C. LP8xxx/backlight-class."
+  },
+  {
+   "fw_class": "lcd7",
+   "bus": 1,
+   "addr": 62,
+   "label": "LCD7, Touch",
+   "part": "FocalTech FT5x06",
+   "confidence": "confirmed",
+   "function": "Touch 7.0 capacitive touch controller",
+   "key_registers": [
+    {
+     "name": "DEV_MODE",
+     "reg": "0x00",
+     "note": ""
+    },
+    {
+     "name": "CHIP_ID",
+     "reg": "0xA3",
+     "note": "FT5x06 chip id"
+    },
+    {
+     "name": "FIRMWARE_ID",
+     "reg": "0xA6",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 34,
+   "notes": "memory red-touch-ft5x06-native + red-touch-i2c-address: FT5x06 at 0x3E (FW table addr; FT default 0x38)."
+  },
+  {
+   "fw_class": "lcd7",
+   "bus": 1,
+   "addr": 117,
+   "label": "LCD7, Power Monitor",
+   "part": "I2C power monitor (INA/UCD9081-class)",
+   "confidence": "likely",
+   "function": "LCD7 power monitor",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 36,
+   "notes": "0x75. UCD tool marks lcd7 0x75 UNKNOWN; read MFR_MODEL/IC_DEVICE_ID live."
+  },
+  {
+   "fw_class": "lcd7",
+   "bus": 1,
+   "addr": 8,
+   "label": "LCD7, Regenerator",
+   "part": "Video/LVDS regenerator",
+   "confidence": "guess",
+   "function": "LCD7 signal regenerator",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 35,
+   "notes": "0x08. GUESS."
+  },
+  {
+   "fw_class": "rear-lcd7",
+   "bus": 2,
+   "addr": 80,
+   "label": "Rear LCD7, EDID",
+   "part": "EDID EEPROM",
+   "confidence": "likely",
+   "function": "LCD7 EDID EEPROM",
+   "key_registers": [
+    {
+     "name": "EDID",
+     "reg": "0x00",
+     "note": "128-byte EDID blob"
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 37,
+   "notes": "0x50. Standard DDC/EDID EEPROM address."
+  },
+  {
+   "fw_class": "rear-lcd7",
+   "bus": 2,
+   "addr": 39,
+   "label": "Rear LCD7, GPIO Exp",
+   "part": "I2C GPIO expander",
+   "confidence": "likely",
+   "function": "LCD7 GPIO expander",
+   "key_registers": [
+    {
+     "name": "INPUT",
+     "reg": "0x00",
+     "note": ""
+    },
+    {
+     "name": "OUTPUT",
+     "reg": "0x01",
+     "note": ""
+    },
+    {
+     "name": "CONFIG",
+     "reg": "0x03",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 38,
+   "notes": "0x27. PCA9xxx/TCA-class."
+  },
+  {
+   "fw_class": "rear-lcd7",
+   "bus": 2,
+   "addr": 109,
+   "label": "Rear LCD7, GEO",
+   "part": "Geometry/scaler IC",
+   "confidence": "guess",
+   "function": "LCD7 geometry/scaler",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 39,
+   "notes": "0x6D. GUESS."
+  },
+  {
+   "fw_class": "rear-lcd7",
+   "bus": 2,
+   "addr": 14,
+   "label": "Rear LCD7, Toshiba",
+   "part": "Toshiba TC358xx LVDS/bridge",
+   "confidence": "likely",
+   "function": "LCD7 Toshiba display bridge",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 40,
+   "notes": "0x0E. 'Toshiba' label => TC358-class DSI/LVDS bridge."
+  },
+  {
+   "fw_class": "rear-lcd7",
+   "bus": 2,
+   "addr": 44,
+   "label": "Rear LCD7, Backlight",
+   "part": "I2C backlight LED driver",
+   "confidence": "likely",
+   "function": "LCD7 backlight controller",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 41,
+   "notes": "0x2C. LP8xxx/backlight-class."
+  },
+  {
+   "fw_class": "rear-lcd7",
+   "bus": 2,
+   "addr": 62,
+   "label": "Rear LCD7, Touch",
+   "part": "FocalTech FT5x06",
+   "confidence": "confirmed",
+   "function": "Touch 7.0 capacitive touch controller",
+   "key_registers": [
+    {
+     "name": "DEV_MODE",
+     "reg": "0x00",
+     "note": ""
+    },
+    {
+     "name": "CHIP_ID",
+     "reg": "0xA3",
+     "note": "FT5x06 chip id"
+    },
+    {
+     "name": "FIRMWARE_ID",
+     "reg": "0xA6",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 42,
+   "notes": "memory red-touch-ft5x06-native + red-touch-i2c-address: FT5x06 at 0x3E (FW table addr; FT default 0x38)."
+  },
+  {
+   "fw_class": "rear-lcd7",
+   "bus": 2,
+   "addr": 117,
+   "label": "Rear LCD7, Power Monitor",
+   "part": "I2C power monitor (INA/UCD9081-class)",
+   "confidence": "likely",
+   "function": "LCD7 power monitor",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 44,
+   "notes": "0x75. UCD tool marks lcd7 0x75 UNKNOWN; read MFR_MODEL/IC_DEVICE_ID live."
+  },
+  {
+   "fw_class": "rear-lcd7",
+   "bus": 2,
+   "addr": 8,
+   "label": "Rear LCD7, Regenerator",
+   "part": "Video/LVDS regenerator",
+   "confidence": "guess",
+   "function": "LCD7 signal regenerator",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 43,
+   "notes": "0x08. GUESS."
+  },
+  {
+   "fw_class": "evf-lcd7",
+   "bus": 2,
+   "addr": 80,
+   "label": "EVF LCD7, EDID",
+   "part": "EDID EEPROM",
+   "confidence": "likely",
+   "function": "LCD7 EDID EEPROM",
+   "key_registers": [
+    {
+     "name": "EDID",
+     "reg": "0x00",
+     "note": "128-byte EDID blob"
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 57,
+   "notes": "0x50. Standard DDC/EDID EEPROM address."
+  },
+  {
+   "fw_class": "evf-lcd7",
+   "bus": 2,
+   "addr": 39,
+   "label": "EVF LCD7, GPIO Exp",
+   "part": "I2C GPIO expander",
+   "confidence": "likely",
+   "function": "LCD7 GPIO expander",
+   "key_registers": [
+    {
+     "name": "INPUT",
+     "reg": "0x00",
+     "note": ""
+    },
+    {
+     "name": "OUTPUT",
+     "reg": "0x01",
+     "note": ""
+    },
+    {
+     "name": "CONFIG",
+     "reg": "0x03",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 58,
+   "notes": "0x27. PCA9xxx/TCA-class."
+  },
+  {
+   "fw_class": "evf-lcd7",
+   "bus": 2,
+   "addr": 109,
+   "label": "EVF LCD7, GEO",
+   "part": "Geometry/scaler IC",
+   "confidence": "guess",
+   "function": "LCD7 geometry/scaler",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 59,
+   "notes": "0x6D. GUESS."
+  },
+  {
+   "fw_class": "evf-lcd7",
+   "bus": 2,
+   "addr": 14,
+   "label": "EVF LCD7, Toshiba",
+   "part": "Toshiba TC358xx LVDS/bridge",
+   "confidence": "likely",
+   "function": "LCD7 Toshiba display bridge",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 60,
+   "notes": "0x0E. 'Toshiba' label => TC358-class DSI/LVDS bridge."
+  },
+  {
+   "fw_class": "evf-lcd7",
+   "bus": 2,
+   "addr": 44,
+   "label": "EVF LCD7, Backlight",
+   "part": "I2C backlight LED driver",
+   "confidence": "likely",
+   "function": "LCD7 backlight controller",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 61,
+   "notes": "0x2C. LP8xxx/backlight-class."
+  },
+  {
+   "fw_class": "evf-lcd7",
+   "bus": 2,
+   "addr": 62,
+   "label": "EVF LCD7, Touch",
+   "part": "FocalTech FT5x06",
+   "confidence": "confirmed",
+   "function": "Touch 7.0 capacitive touch controller",
+   "key_registers": [
+    {
+     "name": "DEV_MODE",
+     "reg": "0x00",
+     "note": ""
+    },
+    {
+     "name": "CHIP_ID",
+     "reg": "0xA3",
+     "note": "FT5x06 chip id"
+    },
+    {
+     "name": "FIRMWARE_ID",
+     "reg": "0xA6",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 62,
+   "notes": "memory red-touch-ft5x06-native + red-touch-i2c-address: FT5x06 at 0x3E (FW table addr; FT default 0x38)."
+  },
+  {
+   "fw_class": "evf-lcd7",
+   "bus": 2,
+   "addr": 117,
+   "label": "EVF LCD7, Power Monitor",
+   "part": "I2C power monitor (INA/UCD9081-class)",
+   "confidence": "likely",
+   "function": "LCD7 power monitor",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 64,
+   "notes": "0x75. UCD tool marks lcd7 0x75 UNKNOWN; read MFR_MODEL/IC_DEVICE_ID live."
+  },
+  {
+   "fw_class": "evf-lcd7",
+   "bus": 2,
+   "addr": 8,
+   "label": "EVF LCD7, Regenerator",
+   "part": "Video/LVDS regenerator",
+   "confidence": "guess",
+   "function": "LCD7 signal regenerator",
+   "key_registers": [
+    {
+     "name": "id",
+     "reg": "0x00",
+     "note": ""
+    }
+   ],
+   "scan_read_len": 1,
+   "scan_expected_id": null,
+   "addr_16bit": false,
+   "no_response_ok": false,
+   "fw_index": 63,
+   "notes": "0x08. GUESS."
+  }
+ ]
+}

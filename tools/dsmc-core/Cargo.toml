@@ -1,0 +1,22 @@
+[package]
+name = "dsmc-core"
+version = "0.1.0"
+edition = "2021"
+description = "Shared primitives for RED DSMC2 camera diagnostics: dsh serial transport, shell-output parsers, and the per-board Baseline data model (capture / diff). The read/diagnose foundation that dsmcdbg (and other DSMC2 host CLIs) build on. Read-only: nothing here writes, pokes, patches, or flashes a camera."
+license = "MIT"
+repository = "https://github.com/_personal/dsmc2-unlocked"
+
+[dependencies]
+# One real dependency: driving the camera's USB CDC-ACM tty with correct 8N1
+# framing and non-blocking reads. Everything else (parsing, the baseline model)
+# is hand-rolled and pure so it unit-tests without a serial port.
+serialport = "4.7.4"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+
+[lib]
+name = "dsmc_core"
+path = "src/lib.rs"
+
+[profile.release]
+opt-level = 3
