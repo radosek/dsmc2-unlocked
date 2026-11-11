@@ -105,3 +105,5 @@ next to a directory (e.g. `tools/fw-crypto/`).
 
 
 `unpack --extract` also writes `slot/MANIFEST.tsv` (path, size, type) and prints a type summary, so the ~400 extracted files are legible without opening them.
+
+`dsmc-fw-core db <file.db> [table] [--grep S]` inspects an extracted SQLite database (factory.db / user.db): with no table it lists tables + row counts; with a table it dumps rows, `--grep` filtering by substring.

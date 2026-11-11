@@ -37,6 +37,7 @@ USAGE:
   dsmc-fw-core recovery list <PREFIX>
   dsmc-fw-core recovery list --raw <FILE> [--stride N]
   dsmc-fw-core recovery recv                           (how to capture a NAND dump)
+  dsmc-fw-core db <file.db> [table] [--grep S]          (inspect an extracted SQLite db)
   dsmc-fw-core redone unpack <redone.su> [--out DIR]
 
 unpack:
@@ -66,6 +67,7 @@ fn run(args: &[String]) -> Result<(), String> {
         Some("preset") => cmd_preset(&args[1..]),
         Some("recovery") => cmd_recovery(&args[1..]),
         Some("redone") => cmd_redone(&args[1..]),
+        Some("db") => cmd_db(&args[1..]),
         Some("-h") | Some("--help") | None => {
             println!("{USAGE}");
             Ok(())
@@ -648,4 +650,85 @@ mod sha256 {
         }
         h.iter().map(|x| format!("{x:08x}")).collect()
     }
+}
+
+
+// db — inspect an extracted SQLite database (factory.db / user.db). With no
+// table, list tables + row counts. With a table, dump its rows; --grep filters
+// rows containing the string. Read-only; a generic reader for the camera config.
+fn cmd_db(args: &[String]) -> Result<(), String> {
+    use rusqlite::Connection;
+    let path = args.first().ok_or("db: missing <file.db>")?;
+    let mut table: Option<&str> = None;
+    let mut grep: Option<&str> = None;
+    let mut i = 1;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--grep" => {
+                grep = Some(args.get(i + 1).ok_or("--grep needs a value")?);
+                i += 2;
+            }
+            t => {
+                table = Some(t);
+                i += 1;
+            }
+        }
+    }
+    let conn = Connection::open_with_flags(
+        path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .map_err(|e| format!("open {path}: {e}"))?;
+
+    match table {
+        None => {
+            // list tables + counts
+            let mut st = conn
+                .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+                .map_err(|e| e.to_string())?;
+            let names: Vec<String> = st
+                .query_map([], |r| r.get::<_, String>(0))
+                .map_err(|e| e.to_string())?
+                .filter_map(Result::ok)
+                .collect();
+            for name in &names {
+                let n: i64 = conn
+                    .query_row(&format!("SELECT COUNT(*) FROM \"{name}\""), [], |r| r.get(0))
+                    .unwrap_or(-1);
+                println!("{name:<24} {n} rows");
+            }
+        }
+        Some(t) => {
+            // dump the table; print all columns tab-separated.
+            let sql = format!("SELECT * FROM \"{t}\"");
+            let mut st = conn.prepare(&sql).map_err(|e| format!("{t}: {e}"))?;
+            let ncol = st.column_count();
+            let cols: Vec<String> = st.column_names().iter().map(|c| c.to_string()).collect();
+            println!("# {}", cols.join("\t"));
+            let rows = st
+                .query_map([], |r| {
+                    let mut vals = Vec::with_capacity(ncol);
+                    for c in 0..ncol {
+                        // read each cell as text (NULL -> empty)
+                        let v: Option<String> = r.get::<_, Option<String>>(c).unwrap_or(None);
+                        vals.push(v.unwrap_or_default());
+                    }
+                    Ok(vals)
+                })
+                .map_err(|e| e.to_string())?;
+            let mut shown = 0usize;
+            for row in rows.filter_map(Result::ok) {
+                let line = row.join("\t");
+                if let Some(g) = grep {
+                    if !line.contains(g) {
+                        continue;
+                    }
+                }
+                println!("{line}");
+                shown += 1;
+            }
+            eprintln!("({shown} rows)");
+        }
+    }
+    Ok(())
 }
