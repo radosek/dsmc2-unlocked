@@ -76,12 +76,23 @@ Source: <https://docs.red.com/955-0166_v7.0/EPIC-W5KS35OperationGuide/Content/C_
 
 ## Firmware
 
-`red_bridge.ino` — build in the Arduino IDE with the RP2040 board package and
-flash the `.uf2` (hold BOOTSEL, drag the file to the `RPI-RP2` drive). It opens
-USB CDC at 115200 and `Serial1` (UART0) at 115200 8N1, and copies bytes both
-ways. Nothing else. Keeping it dumb is deliberate: every earlier attempt that put
-protocol logic on the microcontroller added gaps and bugs that looked like
-camera faults.
+Two firmware variants:
+
+- `red_bridge.ino` — the basic bridge. It opens USB CDC at 115200 and `Serial1`
+  (UART0) at 115200 8N1, and copies bytes both ways. Nothing else.
+- `red_bridge_auto.ino` — the same bridge, plus it follows the host's line coding.
+  The shell is 8N1; the DM3725 UART3 ROM boot is 8E1. This build mirrors whatever
+  the host opens onto the camera side, so one build serves both the shell and ROM
+  recovery. It also drives the `sys_boot5` strap (GP2) for UART3-first boot. Use
+  this one if you also do UART3 ROM-boot recovery (see
+  [tools/rom-recovery](../../tools/rom-recovery)); otherwise either works.
+
+Build in the Arduino IDE with the RP2040 board package and flash the `.uf2` (hold
+BOOTSEL, drag the file to the `RPI-RP2` drive). `red_bridge_auto.ino` needs
+**Tools > USB Stack = "Adafruit TinyUSB"** (it uses the line-coding callback).
+
+Keeping the bridge dumb is deliberate. Every earlier attempt that put protocol
+logic on the microcontroller added gaps and bugs that looked like camera faults.
 
 ## Using it
 
