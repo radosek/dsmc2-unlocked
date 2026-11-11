@@ -1,0 +1,26 @@
+[package]
+name = "dsmc-fw-core"
+version = "0.1.0"
+edition = "2021"
+description = "PUBLIC base primitives for DSMC2 firmware tooling: FW package DECRYPT + package-format READ (v2/v3 peel with the public OAEP keys), preset file READ, and NAND recovery-image geometry. READ-ONLY by design: this crate has NO package-BUILD, NO patching, NO signing, NO flashing. Those private capabilities live in the dsmc-fw CLI (dsmc2-sdk), which depends on this crate."
+license = "MIT"
+repository = "https://github.com/_personal/dsmc2-unlocked"
+
+[lib]
+name = "dsmc_fw_core"
+path = "src/lib.rs"
+
+[dependencies]
+# RSA-OAEP(SHA1, label "dsmc") unwrap of the 256-byte RC4 key + PKCS#1 DER key load.
+rsa = { version = "0.9.8", features = ["sha1"] }
+sha1 = "0.10.6"
+# zlib inflate for FW section / file-pack unwrap (matches python zlib).
+flate2 = "1.0.35"
+# AES-256-ECB for the .preset page cipher (wxSQLite3 scheme). "ecb" feature +
+# the block cipher; we drive the keystream by hand (matches red_preset.py).
+aes = "0.8.4"
+# SQLite (bundled) to BUILD/READ the plaintext preset DB with reserved_bytes=12.
+rusqlite = { version = "0.32.1", features = ["bundled"] }
+
+[profile.release]
+opt-level = 3
