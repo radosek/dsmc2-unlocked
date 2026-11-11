@@ -33,6 +33,7 @@ USAGE:
   dsmc-fw-core unpack --extract [TYPE] [--out DIR] [--keys DIR] <combo.bin>
   dsmc-fw-core preset read  <file.preset>
   dsmc-fw-core preset build <out.preset> <version> NAME=VALUE [NAME=VALUE ...]
+  dsmc-fw-core preset diff  <a.preset> <b.preset>
   dsmc-fw-core recovery list <PREFIX>
   dsmc-fw-core recovery list --raw <FILE> [--stride N]
   dsmc-fw-core recovery recv                           (how to capture a NAND dump)
@@ -302,6 +303,44 @@ fn cmd_preset(args: &[String]) -> Result<(), String> {
             println!("version: {}", p.version);
             for (name, value) in &p.params {
                 println!("{name} = {value}");
+            }
+            Ok(())
+        }
+        Some("diff") => {
+            // diff <a.preset> <b.preset> — show which settings differ.
+            let pa = args.get(1).ok_or("preset diff: missing <a.preset>")?;
+            let pb = args.get(2).ok_or("preset diff: missing <b.preset>")?;
+            let a = preset::read(&std::fs::read(pa).map_err(|e| e.to_string())?)?;
+            let b = preset::read(&std::fs::read(pb).map_err(|e| e.to_string())?)?;
+            let am: std::collections::BTreeMap<&str, &str> =
+                a.params.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+            let bm: std::collections::BTreeMap<&str, &str> =
+                b.params.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+            if a.version != b.version {
+                println!("version: {} -> {}", a.version, b.version);
+            }
+            let mut changed = 0usize;
+            for (k, av) in &am {
+                match bm.get(k) {
+                    Some(bv) if bv != av => {
+                        println!("~ {k}: {av} -> {bv}");
+                        changed += 1;
+                    }
+                    None => {
+                        println!("- {k}: {av}");
+                        changed += 1;
+                    }
+                    _ => {}
+                }
+            }
+            for (k, bv) in &bm {
+                if !am.contains_key(k) {
+                    println!("+ {k}: {bv}");
+                    changed += 1;
+                }
+            }
+            if changed == 0 {
+                println!("identical ({} settings)", am.len());
             }
             Ok(())
         }
