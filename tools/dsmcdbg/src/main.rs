@@ -322,7 +322,7 @@ fn cmd_diag(c: &Common) -> Result<ExitCode, String> {
             println!("ISP1 heartbeat = 0x{h:X} ({})", if h != 0 { "ticking" } else { "STOPPED — core dead" });
         }
     }
-    println!("(for the full boot log, pull /log/log.data and decode with red-log-decoder)");
+    println!("(full boot log: pull /log/log.data, then `dsmcdbg log analyze`; map errors to firmware code with `dsmc-re explain-log`)");
     Ok(ExitCode::SUCCESS)
 }
 
@@ -388,6 +388,9 @@ LOG (offline, no serial — decode + triage exported/pulled logs):
   log health <decoded.txt>         PASS/FAIL on the ISP XAUI link per boot
   log analyze <decoded.txt> [-o D] split + clean + per-session files + SUMMARY
   log diff <good.txt> <bad.txt>    working-vs-broken milestone diff
+
+  Pipe a decoded log into `dsmc-re explain-log` (sdk) to map each error line
+  to the firmware function that raised it.
 
 NOTES:
   Known-normal traps baked in (never fault): ISP1 0x88900034=0x0 post-boot,
