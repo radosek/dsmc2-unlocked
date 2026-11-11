@@ -48,6 +48,35 @@ tools, so that owners can maintain hardware RED no longer sells.
 > discontinued-products page, marked "repair parts no longer available" — which is
 > why this repository documents the cheap-SSD media path in full.
 
+## Quickstart — the tools
+
+The debug and firmware tools are Rust. You need the Rust toolchain
+([rustup.rs](https://rustup.rs)). Build and run each tool from its own directory.
+
+**`dsmcdbg`** — debug a live camera. It reads the camera over the serial shell,
+captures every board signal, and compares the result to a known-good baseline.
+
+```sh
+cd tools/dsmcdbg
+cargo run -- selftest --port /dev/cu.usbmodemXXXX   # full health check vs the golden baseline
+cargo run -- log decode <logfile>                   # decode an exported .enc log
+```
+
+**`dsmc-fw-core`** — read firmware. It decrypts packages, reads and builds
+`.preset` files, lists NAND recovery dumps, and unpacks RED ONE firmware. It does
+not sign or flash.
+
+```sh
+cd tools/dsmc-fw-core
+cargo run -- unpack --list <combo.bin>              # list the models in a package
+cargo run -- unpack --extract 0x16 --out DIR <combo.bin>
+cargo run -- preset read <file.preset>
+```
+
+The private build / patch / sign / flash tool (`dsmc-fw`) and the
+reverse-engineering tool (`dsmc-re`) are in the `dsmc2-sdk` repository. Clone it
+next to this one (the two repositories must be siblings).
+
 ## Contents
 
 | Area | What it covers |
