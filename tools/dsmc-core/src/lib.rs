@@ -22,6 +22,7 @@
 
 pub mod baseline;
 pub mod i2c;
+pub mod log;
 pub mod parse;
 pub mod reply;
 pub mod runner;

@@ -25,3 +25,5 @@ dumps/
 !tools/fw-crypto/fw_v3_privkey.der
 # The log XOR pad is a published obfuscation constant, not a secret. See docs/log-decode.md.
 !tools/red-log-decoder/log_xor_table.bin
+# Same pad, embedded into dsmc-core via include_bytes! for `dsmcdbg log decode`.
+!tools/dsmc-core/src/log_xor_table.bin

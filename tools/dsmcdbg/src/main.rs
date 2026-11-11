@@ -20,6 +20,7 @@ use dsmc_core::baseline::{self, Capture, Golden, Verdict};
 use dsmc_core::Shell;
 
 mod capture;
+mod logcmd;
 
 const DEFAULT_PORT: &str = dsmc_core::DEFAULT_PORT;
 const PROMPT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -39,6 +40,19 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
     let sub = args[0].clone();
+
+    // `log` is an offline file tool (no serial port, its own flags) — dispatch
+    // before the serial-oriented common-arg parsing.
+    if sub == "log" {
+        return match logcmd::run(&args[1..]) {
+            Ok(code) => code,
+            Err(e) => {
+                eprintln!("[dsmcdbg] {e}");
+                ExitCode::FAILURE
+            }
+        };
+    }
+
     let common = parse_common(&args[1..]);
 
     let r = match sub.as_str() {
@@ -365,6 +379,15 @@ BASELINE:
 PER-AREA (thin reads):
   shell \"CMD\" [\"CMD2\"...]     reg <addr>          i2c scan | read <bus> <addr> <reg> [len]
   ucd      voltage   temp     x12   x4   state   env   heartbeat   dragon   ddr <tgt>   diag
+
+LOG (offline, no serial — decode + triage exported/pulled logs):
+  log decode <file.enc> [out]      XOR-decode a .enc export (plaintext passes through)
+  log sessions <decoded.txt>       list boot sessions with triage one-liners
+  log clean <decoded.txt> [-o F]   rejoin continuation lines, one file, sessions marked
+  log digest <decoded.txt> [--session N]   denoised event digest per session
+  log health <decoded.txt>         PASS/FAIL on the ISP XAUI link per boot
+  log analyze <decoded.txt> [-o D] split + clean + per-session files + SUMMARY
+  log diff <good.txt> <bad.txt>    working-vs-broken milestone diff
 
 NOTES:
   Known-normal traps baked in (never fault): ISP1 0x88900034=0x0 post-boot,

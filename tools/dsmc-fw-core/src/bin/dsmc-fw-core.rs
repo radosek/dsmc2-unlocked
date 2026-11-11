@@ -20,7 +20,7 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use dsmc_fw_core::{package, preset, recovery};
+use dsmc_fw_core::{package, preset, recovery, redone};
 
 /// (tagged pages, header chunks) loaded from a NAND dump, fed to list_objects.
 type NandDump = (Vec<(u64, recovery::SpareTag)>, Vec<recovery::HeaderChunk>);
@@ -35,6 +35,7 @@ USAGE:
   dsmc-fw-core preset build <out.preset> <version> NAME=VALUE [NAME=VALUE ...]
   dsmc-fw-core recovery list <PREFIX>
   dsmc-fw-core recovery list --raw <FILE> [--stride N]
+  dsmc-fw-core redone unpack <redone.su> [--out DIR]
 
 unpack:
   --list             list package slices (combo TOC, or a standalone v2 header)
@@ -62,6 +63,7 @@ fn run(args: &[String]) -> Result<(), String> {
         Some("unpack") => cmd_unpack(&args[1..]),
         Some("preset") => cmd_preset(&args[1..]),
         Some("recovery") => cmd_recovery(&args[1..]),
+        Some("redone") => cmd_redone(&args[1..]),
         Some("-h") | Some("--help") | None => {
             println!("{USAGE}");
             Ok(())
@@ -410,6 +412,56 @@ fn load_prefix(prefix: &str) -> Result<NandDump, String> {
         i += 292;
     }
     Ok((tagged, headers))
+}
+
+// ---------------------------------------------------------------------------
+// redone  (port of redone_su_decrypt.py)
+// ---------------------------------------------------------------------------
+
+fn cmd_redone(args: &[String]) -> Result<(), String> {
+    match args.first().map(String::as_str) {
+        Some("unpack") => redone_unpack(&args[1..]),
+        _ => Err(format!("redone: expected `unpack`\n\n{USAGE}")),
+    }
+}
+
+fn redone_unpack(args: &[String]) -> Result<(), String> {
+    let mut su: Option<String> = None;
+    let mut out = String::from("redone_out");
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--out" => {
+                i += 1;
+                out = args.get(i).ok_or("--out needs a directory")?.clone();
+            }
+            other if other.starts_with("--") => return Err(format!("unknown flag {other:?}")),
+            other => su = Some(other.to_string()),
+        }
+        i += 1;
+    }
+    let su = su.ok_or("redone unpack: missing <redone.su>")?;
+    let buf = std::fs::read(&su).map_err(|e| format!("read {su}: {e}"))?;
+    let outputs = redone::unpack(&buf).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&out).map_err(|e| e.to_string())?;
+
+    // Reproduce the python's per-member stdout lines, in archive order.
+    for o in &outputs {
+        match o {
+            redone::Output::Payload { member, out_name, data } => {
+                std::fs::write(Path::new(&out).join(out_name), data).map_err(|e| e.to_string())?;
+                println!(
+                    "{member}: decrypted+inflated -> {out_name} ({} B)",
+                    data.len()
+                );
+            }
+            redone::Output::Signature { member, out_name, data } => {
+                std::fs::write(Path::new(&out).join(out_name), data).map_err(|e| e.to_string())?;
+                println!("{member}: RSA-1024 signature ({} B) saved", data.len());
+            }
+        }
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------

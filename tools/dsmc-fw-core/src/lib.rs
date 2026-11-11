@@ -25,6 +25,7 @@ pub mod package;
 pub mod preset;
 pub mod rc4;
 pub mod recovery;
+pub mod redone;
 pub mod redzlib;
 
 /// The canonical shipped `dsmc_program.mem` app-image size (one NAND slot).
