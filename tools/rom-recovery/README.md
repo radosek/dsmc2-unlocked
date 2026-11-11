@@ -1,14 +1,14 @@
 # rom-recovery — DSMC2 block-0 recovery over the boot ROM
 
 Bare-metal ARM image that restores **block 0** of the DSMC2 NAND (the boot loader) over
-the DM3725 **UART3 ROM peripheral-boot** path (DM37xx/OMAP3630 family). It runs when the camera will not boot —
-the on-chip ROM loads this image to SRAM and runs it. No U-Boot, no DDR, no PLL; it uses
+the DM3725 **UART3 ROM peripheral-boot** path (DM37xx/OMAP3630 family). It runs when the camera will not boot.
+The on-chip ROM loads this image to SRAM and runs it. No U-Boot, no DDR, no PLL; it uses
 SRAM only.
 
 ## When you need this
 
 Only when **block 0 itself** is damaged (the camera does not reach the loader at all).
-A damaged app or image partition does **not** need this — reflash those from a stock
+A damaged app or image partition does **not** need this. Reflash those from a stock
 firmware package instead. Block 0 is the rare case.
 
 ## What it does
@@ -21,8 +21,8 @@ firmware package instead. Block 0 is the rare case.
    (block 0 uses ROM Hamming ECC stored in the spare, not on-die ECC).
 6. Verifies every page against the embedded image, then re-locks.
 
-The image is written in **slices** (about 21 pages per run, 3 runs for all 61 pages),
-because the ROM download area is only about 50 KB.
+The image is written in **slices** (about 21 pages per run, 3 runs for all 61 pages).
+The ROM download area is only about 50 KB.
 
 ## You supply the block-0 image
 
@@ -37,7 +37,7 @@ This repo does **not** ship a block-0 binary (it is RED firmware). You provide y
   ```
 
 If your block 0 is already dead and you cannot dump it, ask the project maintainer for a
-reference image — it is not published here.
+reference image. It is not published here.
 
 ## Layout
 
@@ -72,7 +72,7 @@ Each build writes `image/restore.bin`. Send it to the camera with the RP2040 ROM
 - `build.sh` — builds one slice.
 
 The `host/` tools (`nand_dump_rx.py`, `nand_rawread_rx.py`) are Python and use
-`pyserial`. They receive a NAND dump over the serial link; they are not part of
+`pyserial`. They receive a NAND dump over the serial link. They are not part of
 building the image. To list the objects in a received dump, use
 [`dsmc-fw-core recovery list`](../dsmc-fw-core) (`cargo run -- recovery list --raw <FILE>`).
 

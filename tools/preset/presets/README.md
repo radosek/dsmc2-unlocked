@@ -15,6 +15,6 @@ cargo run --manifest-path ../../dsmc-fw-core/Cargo.toml -- preset read enable-sh
 cargo run --manifest-path ../../dsmc-fw-core/Cargo.toml -- preset build my.preset 7 NAME=VALUE [NAME=VALUE ...]
 ```
 
-These are plain configuration — the flags shown above and nothing else. The
+These are plain configuration: the flags shown above and nothing else. The
 encryption key is public (see [docs/keys.md](../../../docs/firmware/keys.md)), so the files
 hold no secret.

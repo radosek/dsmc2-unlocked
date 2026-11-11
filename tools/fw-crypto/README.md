@@ -6,11 +6,11 @@ explanation: [docs/keys.md](../../docs/firmware/keys.md) and
 
 A firmware `.bin` is an RSA-OAEP-wrapped RC4 package. These two keys are embedded
 in the firmware and included here as `.der` files. With them, any shipped package
-decrypts to full plaintext — every OS file, the bootloader, and the application
+decrypts to full plaintext: every OS file, the bootloader, and the application
 image.
 
-The unpacker is implemented in Rust in [`dsmc-fw-core`](../dsmc-fw-core), which
-finds these keys automatically (exe-relative, or `--keys DIR` / `$DSMC_FW_KEYS`):
+The unpacker is Rust, in [`dsmc-fw-core`](../dsmc-fw-core). It finds these keys
+automatically (exe-relative, or `--keys DIR` / `$DSMC_FW_KEYS`):
 
 ```sh
 cd ../dsmc-fw-core
@@ -30,6 +30,6 @@ Files:
 - `fw_v2_privkey.der` — RSA private key for `DSMC\x02` packages (firmware VA `0x80f60f84`).
 - `fw_v3_privkey.der` — RSA private key for `DSMC\x03` packages (firmware VA `0x80f6164c`).
 
-These are **decryption** keys, not signing keys. They open packages; they cannot
+These are **decryption** keys, not signing keys. They open packages. They cannot
 forge a RED-signed one. See [docs/keys.md](../../docs/firmware/keys.md) for why that does
 not block repair.

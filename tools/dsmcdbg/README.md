@@ -1,14 +1,14 @@
 # dsmcdbg — DSMC2 camera debug CLI
 
 Read-only diagnostics for RED DSMC2 cameras over the `dsh>` serial shell. One
-Rust binary, subcommands. It **talks to a camera and reports its health** —
-nothing here builds, patches, signs, or flashes firmware (that lives in the
-separate private firmware tooling). Reading a camera is always safe to share,
-which is why this tool is public.
+Rust binary with subcommands. It **talks to a camera and reports its health**.
+Nothing here builds, patches, signs, or flashes firmware; that lives in the
+separate private firmware tooling. Reading a camera is always safe to share, so
+this tool is public.
 
-Built on the [`dsmc-core`](../dsmc-core) library: the serial transport, the
-shell-output parsers, and the per-board `Baseline` model all live there, so
-`dsmcdbg` is a thin arg-parse + orchestration layer and other CLIs can reuse the
+Built on the [`dsmc-core`](../dsmc-core) library. The serial transport, the
+shell-output parsers, and the per-board `Baseline` model all live there.
+`dsmcdbg` is a thin arg-parse + orchestration layer, so other CLIs reuse the
 same primitives.
 
 ## The flagship: `selftest`
@@ -38,19 +38,19 @@ RESULT: PASS — all real signals healthy.
 - **Exit code = health**: `0` = every real signal passes, `1` = at least one true
   fault. The known-normal traps (below) are `EXPECTED-PASS` and never affect the
   exit code.
-- **The FAIL rows are the repair tool**: each names the exact board + signal that
+- **The FAIL rows are the repair tool**. Each names the exact board + signal that
   is off, with the repair verdict (e.g. a failing X12 lane → *sensor↔ISP
   flex/connector*; a UCD rail STATUS_VOUT≠0 → *power fault, names the rail*).
 
 `-o capture.json` also writes the raw capture (same shape as `baseline
 --capture`). `--golden FILE` points at a different golden (e.g. a per-body one).
-If no golden is given it uses `golden_59c.json` from the CWD, else the copy
+Without `--golden` it uses `golden_59c.json` from the CWD, else the copy
 embedded in the binary.
 
 ### Known-normal traps (baked in — never reported as a fault)
 
 A healthy 59C fails a few tests by design. `selftest` flags these
-`EXPECTED-PASS` so a tech is never misled:
+`EXPECTED-PASS` so a tech is not misled:
 
 | signal | why it's normal |
 |---|---|
@@ -59,7 +59,7 @@ A healthy 59C fails a few tests by design. `selftest` flags these
 | `test ram isp0` **Address Complement Pattern - Fail** | ISP0 is not the active DDR path; ISP1 DDR + IOB DDR pass and the camera records. |
 | I2C `bus2:0x47` | unidentified device, present on both 59C and cam2. Presence only, not a fault. |
 
-These live in the golden data file (`expected_fail` / `i2c_informational`), so the
+These live in the golden data file (`expected_fail` / `i2c_informational`). The
 list updates at the bench as more are found.
 
 ## Baseline capture / diff
@@ -69,17 +69,17 @@ dsmcdbg baseline --capture [-o baseline.json] [--deep]   # full signal set → J
 dsmcdbg baseline --diff broken.json --golden 59c.json    # deviations + repair verdicts
 ```
 
-`--capture` drives the stock shell + UCD reads + I2C scan and records, with the
-exact source command per field: system_state, ISP/IOB version, ISP1 heartbeat,
+`--capture` drives the stock shell + UCD reads + I2C scan and records each field
+with its exact source command: system_state, ISP/IOB version, ISP1 heartbeat,
 Dragon ID, every voltage rail, board temps, X12 + X4 lane status, UCD STATUS_WORD
 + per-rail STATUS_VOUT, the full I2C device map, and (with `--deep`) the IOB /
 ISP1 / ISP0 DDR tests. The committed `golden_59c.json` was seeded from a
-`--capture` on the healthy 59C plus hand-annotated tolerances and traps.
+`--capture` on the healthy 59C, plus hand-annotated tolerances and traps.
 
-`--diff` loads two captures and prints only the deviations, each tagged with the
-BASELINE_59C repair verdict (X12 → flex/connector, X4 → ISP↔IOB link, UCD/voltage
-→ power fault, version/heartbeat → core dead, Dragon 0x0 → sensor not responding,
-never-ready → walk the boot log).
+`--diff` loads two captures and prints only the deviations. Each one is tagged
+with the BASELINE_59C repair verdict (X12 → flex/connector, X4 → ISP↔IOB link,
+UCD/voltage → power fault, version/heartbeat → core dead, Dragon 0x0 → sensor not
+responding, never-ready → walk the boot log).
 
 ## Per-area reads (thin wrappers)
 
@@ -108,11 +108,11 @@ cargo test  --release          # parsers + golden-vs-healthy-59C assertion
 
 `cargo test` includes an offline check that the shipped `golden_59c.json` gives
 **zero faults** against a synthetic capture built from the real 59C baseline
-values and the exact rail-name strings the shell prints — this guards the golden
+values and the exact rail-name strings the shell prints. This guards the golden
 keys against parser drift.
 
 ## Serial / shutoff note
 
 The DSMC2 serial shell can drop mid-session (auto power-off / shutoff window). If
-a command returns nothing, the camera is likely powered down — power-cycle and
-reopen; each subcommand opens a fresh session and waits up to 30 s for the prompt.
+a command returns nothing, the camera is likely powered down. Power-cycle and
+reopen. Each subcommand opens a fresh session and waits up to 30 s for the prompt.

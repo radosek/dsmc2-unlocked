@@ -3,8 +3,8 @@
 Decrypts a RED ONE `redone.su` upgrade file (build 16 / v3.x and later) into its
 VxWorks image and Xilinx FPGA bitstream.
 
-RED ONE is the **DSMC1-era** PowerPC / VxWorks body — a different, older generation
-than the EPIC / SCARLET / Dragon bodies (which use the v2 firmware container, see
+RED ONE is the **DSMC1-era** PowerPC / VxWorks body. It is an older generation
+than the EPIC / SCARLET / Dragon bodies, which use the v2 firmware container (see
 [../fw-crypto](../fw-crypto)). This tool is only for `redone.su`.
 
 ## Format
@@ -19,12 +19,13 @@ than the EPIC / SCARLET / Dragon bodies (which use the v2 firmware container, se
 | `redone.4` | 128-byte RSA-1024 signature over `redone.3` |
 
 The AES layer is `openssl enc -aes-256-cbc -md md5` (`Salted__` header + 8-byte
-salt, legacy `EVP_BytesToKey` MD5 KDF). The passphrase is a constant string present
-in the VxWorks image's own string table — an **obfuscation key, not a secret**, the
-same situation as the published v2/v3 decryption keys. It is embedded in the tool.
+salt, legacy `EVP_BytesToKey` MD5 KDF). The passphrase is a constant string in
+the VxWorks image's own string table. It is an **obfuscation key, not a secret**,
+the same situation as the published v2/v3 decryption keys. It is embedded in the
+tool.
 
 Build 15 (v2.2.x) and earlier shipped the same two payloads in the clear as
-`su.tar`; the encrypted `redone.su` wrapper appears at build 16 (v3.x).
+`su.tar`. The encrypted `redone.su` wrapper appears at build 16 (v3.x).
 
 ## Use
 

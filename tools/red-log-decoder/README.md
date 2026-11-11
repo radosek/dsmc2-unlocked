@@ -1,12 +1,12 @@
 # red-log-decoder
 
 Reference material for the DSMC2 camera log cipher. The decoder/triage tool is
-Rust — `dsmcdbg log` (see [`tools/dsmcdbg`](../dsmcdbg)). Full explanation:
+Rust: `dsmcdbg log` (see [`tools/dsmcdbg`](../dsmcdbg)). Full explanation:
 [docs/log-decode.md](../../docs/firmware/log-decode.md).
 
-The camera log is XOR-obfuscated (not encrypted) with a fixed 1024-byte pad —
-no camera, key, or secret needed. The pad is a hardcoded firmware constant,
-shipped here as `log_xor_table.bin` (and embedded in `dsmcdbg`); it is the same
+The camera log is XOR-obfuscated (not encrypted) with a fixed 1024-byte pad. It
+needs no camera, key, or secret. The pad is a hardcoded firmware constant,
+shipped here as `log_xor_table.bin` (and embedded in `dsmcdbg`). It is the same
 on every body. The cipher proof is in [LOG_CIPHER.md](LOG_CIPHER.md).
 
 ```sh

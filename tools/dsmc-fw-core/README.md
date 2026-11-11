@@ -1,10 +1,10 @@
 # dsmc-fw-core — PUBLIC DSMC2 firmware-tooling base (Rust lib)
 
-The shared, **read-only** primitive layer that the private `dsmc-fw` CLI (in
-`dsmc2-sdk`) builds the firmware create/patch/sign/flash pipeline on. This crate
-is intentionally the **minimal public surface** (option-2): it can **decrypt and
+The shared, **read-only** primitive layer. The private `dsmc-fw` CLI (in
+`dsmc2-sdk`) builds its firmware create/patch/sign/flash pipeline on this crate.
+This crate is the **minimal public surface** (option-2). It can **decrypt and
 read** firmware, read/build `.preset` config, and reason about NAND recovery
-geometry — and nothing else.
+geometry — nothing else.
 
 ## Scope — DECRYPT / READ / PRESET / RECOVERY only
 
@@ -22,11 +22,11 @@ geometry — and nothing else.
 - **own-key signing** (held keys)
 - the staged **NAND flash** + boot-slot flip
 
-Keeping those out of this crate is the entire point of the public/private split.
-This crate has **no signing code and ships no keys**. The OAEP private keys it
-uses to *decrypt* are the public OAEP-unwrap keys already shipped in
-`tools/fw-crypto/` (`fw_v2_privkey.der` / `fw_v3_privkey.der`); callers pass their
-path, and this crate only ever *decrypts* with them.
+Keeping those out of this crate is the point of the public/private split.
+This crate has **no signing code and ships no keys**. It *decrypts* with the
+public OAEP-unwrap keys already shipped in `tools/fw-crypto/`
+(`fw_v2_privkey.der` / `fw_v3_privkey.der`). Callers pass their path. This crate
+only ever *decrypts* with them.
 
 ## Runnable CLI (`dsmc-fw-core`)
 
@@ -41,11 +41,11 @@ dsmc-fw-core recovery list   <PREFIX>                 # PREFIX_spare.bin + PREFI
 dsmc-fw-core recovery list   --raw <FILE> [--stride N]
 ```
 
-It is **read/decrypt only**: no signing, no package-build, no flashing, and it
-prints no keys.
+It is **read/decrypt only**: no signing, no package-build, no flashing, no key
+printing.
 
 ### Key resolution (no cwd-search, no hardcoded path)
-`unpack` needs the public OAEP keys. It resolves them, in order:
+`unpack` needs the public OAEP keys. It resolves them in this order:
 1. `--keys <DIR>`,
 2. `$DSMC_FW_KEYS`,
 3. the `fw-crypto/` directory **discovered relative to the executable** (the
@@ -65,9 +65,9 @@ The `unpack` CLI parity test runs against a real combo when
 
 ## Removal-readiness — Rust CLI ⇄ python parity
 
-Each public python tool has a byte-for-byte Rust replacement, now the only
-implementation (the python was removed after parity held). Parity was
-run on real inputs (combo `combo_7.4.1.bin`, real `.preset` files, real NAND
+Each public python tool has a byte-for-byte Rust replacement. The Rust is now
+the only implementation; the python was removed after parity held. Parity ran
+on real inputs (combo `combo_7.4.1.bin`, real `.preset` files, real NAND
 spare/hdr dumps):
 
 | python tool | Rust replacement | parity proof (real input) | result |
@@ -85,8 +85,8 @@ same cleanup is tracked for the RED master tree.
 
 ## Cross-repo build note (sibling clones required)
 The PRIVATE `dsmc-fw` CLI (in **dsmc2-sdk**) depends on this crate **and** on
-`dsmc-core` via sibling-relative paths (`../../../dsmc2-unlocked/...`). The two
-repos must therefore be cloned as **siblings**:
+`dsmc-core` via sibling-relative paths (`../../../dsmc2-unlocked/...`). Clone the
+two repos as **siblings**:
 
 ```
 <parent>/
@@ -95,7 +95,7 @@ repos must therefore be cloned as **siblings**:
 ```
 
 A future option is to switch those path deps to a git submodule or to published
-crates; for now the sibling layout is the build requirement.
+crates. For now the sibling layout is the build requirement.
 
 ## Keys (lib API)
 `package::parse_v2 / parse_v3 / extract_v2` take a path to the public OAEP key.
