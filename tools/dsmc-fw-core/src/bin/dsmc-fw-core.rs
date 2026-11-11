@@ -246,6 +246,8 @@ fn extract_v2_to(sl: &[u8], v2_key: &Path, out: &Path) -> Result<(), String> {
     if !ex.files.is_empty() {
         let base = out.join("slot");
         let mut n = 0usize;
+        let mut manifest = String::from("path\tsize\ttype\n");
+        let mut types: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
         for f in &ex.files {
             // python prints this note (to stdout) whenever len(data) != ulen,
             // then writes the file anyway. Reproduce it for byte-exact parity.
@@ -262,9 +264,22 @@ fn extract_v2_to(sl: &[u8], v2_key: &Path, out: &Path) -> Result<(), String> {
                 std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
             }
             std::fs::write(&dst, &f.data).map_err(|e| e.to_string())?;
+            let ty = dsmc_fw_core::filetype::file_type(&f.rel_path, &f.data);
+            manifest.push_str(&format!("{}\t{}\t{}\n", f.rel_path, f.data.len(), ty));
+            *types.entry(ty).or_insert(0usize) += 1;
             n += 1;
         }
+        let mpath = base.join("MANIFEST.tsv");
+        std::fs::write(&mpath, &manifest).map_err(|e| e.to_string())?;
         println!("  slot: {} files -> {}/slot", n, out.display());
+        print!("  types:");
+        let mut tv: Vec<_> = types.iter().collect();
+        tv.sort_by(|a, b| b.1.cmp(a.1));
+        for (t, c) in tv {
+            print!(" {t}={c}");
+        }
+        println!();
+        println!("  manifest -> {}", mpath.display());
     }
     Ok(())
 }

@@ -25,6 +25,7 @@ pub mod package;
 pub mod preset;
 pub mod rc4;
 pub mod recovery;
+pub mod filetype;
 pub mod redone;
 pub mod redzlib;
 

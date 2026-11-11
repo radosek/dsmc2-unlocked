@@ -102,3 +102,6 @@ crates. For now the sibling layout is the build requirement.
 `package::parse_v2 / parse_v3 / extract_v2` take a path to the public OAEP key.
 `package::default_key_paths(dir)` resolves `fw_v2_privkey.der` / `fw_v3_privkey.der`
 next to a directory (e.g. `tools/fw-crypto/`).
+
+
+`unpack --extract` also writes `slot/MANIFEST.tsv` (path, size, type) and prints a type summary, so the ~400 extracted files are legible without opening them.
