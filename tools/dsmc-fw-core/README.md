@@ -39,6 +39,7 @@ dsmc-fw-core preset read     <file.preset>
 dsmc-fw-core preset build    <out.preset> <version> NAME=VALUE [NAME=VALUE ...]
 dsmc-fw-core recovery list   <PREFIX>                 # PREFIX_spare.bin + PREFIX_hdr.bin
 dsmc-fw-core recovery list   --raw <FILE> [--stride N]
+dsmc-fw-core recovery recv                           # how to capture a dump (serial rig)
 ```
 
 It is **read/decrypt only**: no signing, no package-build, no flashing, no key

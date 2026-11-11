@@ -35,6 +35,7 @@ USAGE:
   dsmc-fw-core preset build <out.preset> <version> NAME=VALUE [NAME=VALUE ...]
   dsmc-fw-core recovery list <PREFIX>
   dsmc-fw-core recovery list --raw <FILE> [--stride N]
+  dsmc-fw-core recovery recv                           (how to capture a NAND dump)
   dsmc-fw-core redone unpack <redone.su> [--out DIR]
 
 unpack:
@@ -327,8 +328,36 @@ fn random_nonce() -> [u8; preset::RV] {
 fn cmd_recovery(args: &[String]) -> Result<(), String> {
     match args.first().map(String::as_str) {
         Some("list") => recovery_list(&args[1..]),
-        _ => Err(format!("recovery: expected `list`\n\n{USAGE}")),
+        Some("recv") => recovery_recv(),
+        _ => Err(format!("recovery: expected `list` or `recv`\n\n{USAGE}")),
     }
+}
+
+// recv is a live serial capture that needs the RP2040 ROM-boot rig and a camera
+// in UART3 ROM boot, so it cannot run or be tested without that hardware. Rather
+// than reimplement the receiver (and pull a serial dep into this read-only tool),
+// `recv` points at the proven Python receivers in the rom-recovery rig; their
+// output (PREFIX_spare.bin + PREFIX_hdr.bin) is exactly what `recovery list` reads.
+fn recovery_recv() -> Result<(), String> {
+    println!(
+        "recovery recv — capture a NAND dump over the UART3 ROM-boot rig.\n\
+\n\
+This step is a LIVE serial capture: it needs the RP2040 rom-recovery rig and a\n\
+camera in UART3 ROM boot (see tools/rom-recovery/README.md). It is not part of\n\
+this read-only CLI. Run the receiver from the rig:\n\
+\n\
+  # object-header dump (spare tags + yaffs headers; blank pages skipped)\n\
+  python3 tools/rom-recovery/host/nand_dump_rx.py <PORT> <PREFIX>\n\
+\n\
+  # full raw pages (2112 B/page, ECC off)\n\
+  python3 tools/rom-recovery/host/nand_rawread_rx.py <PORT> <PREFIX>\n\
+\n\
+Then list what it captured with this tool:\n\
+\n\
+  dsmc-fw-core recovery list <PREFIX>\n\
+  dsmc-fw-core recovery list --raw <PREFIX> --stride 2112\n"
+    );
+    Ok(())
 }
 
 fn recovery_list(args: &[String]) -> Result<(), String> {
