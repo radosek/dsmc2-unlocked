@@ -71,8 +71,10 @@ Each build writes `image/restore.bin`. Send it to the camera with the RP2040 ROM
   compiles and runs it, so building the image needs no Python).
 - `build.sh` — builds one slice.
 
-The `host/` tools (`nand_dump_rx.py`, `nand_rawread_rx.py`, `nand_list.py`) are Python and
-use `pyserial`. They read the NAND only; they are not part of building the image.
+The `host/` tools (`nand_dump_rx.py`, `nand_rawread_rx.py`) are Python and use
+`pyserial`. They receive a NAND dump over the serial link; they are not part of
+building the image. To list the objects in a received dump, use
+[`dsmc-fw-core recovery list`](../dsmc-fw-core) (`cargo run -- recovery list --raw <FILE>`).
 
 ## Safety
 

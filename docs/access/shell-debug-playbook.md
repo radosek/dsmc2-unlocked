@@ -89,13 +89,9 @@ but does not survive a reboot for these parameters.
 
 ## Presets
 
-- `red_preset.py make` builds a fresh database. Some bodies reject it (shell
-  never comes up) even with a valid codec.
-- `red_preset.py clone src.preset out.preset NAME=VALUE ...` decrypts a
-  known-good preset, edits it in place and re-encrypts it, preserving the schema,
-  table order, 5-column `info` row, page count and reserved-byte field. Prefer
-  this when `make` output is rejected.
-- Verify with `red_preset.py info file.preset`; byte `0x14` must be `0x0c`.
+- `dsmc-fw-core preset build` builds a fresh database. Some bodies reject it
+  (shell never comes up) even with a valid codec.
+- Verify a preset decrypts and reads back with `dsmc-fw-core preset read file.preset`.
 - The camera consumes `force_preset` at boot; re-stage it for every boot.
 
 ## Media / file transfer

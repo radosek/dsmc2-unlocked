@@ -38,7 +38,7 @@ in the one preset.
    [`enable-shell.preset`](../../tools/preset/presets/enable-shell.preset), or build
    one that sets both flags — `DEBUG_ENABLE_SHELL=1` and
    `COMM_SERIAL_PORT_PROTOCOL=4` (that CDB name is the `SERPROTO` routing gate):
-   `python3 tools/preset/red_preset.py make shell.preset 7 DEBUG_ENABLE_SHELL=1 COMM_SERIAL_PORT_PROTOCOL=4`.
+   `cargo run --manifest-path tools/dsmc-fw-core/Cargo.toml -- preset build shell.preset 7 DEBUG_ENABLE_SHELL=1 COMM_SERIAL_PORT_PROTOCOL=4`.
    See [tools/preset/](../../tools/preset) and [docs/keys.md](../firmware/keys.md).
 2. Copy the preset into **`/force_preset/`** on a MINI-MAG. The camera applies it
    at boot. It auto-deletes each boot, so re-stage it every time.

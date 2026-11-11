@@ -1,29 +1,32 @@
-# fw-crypto
+# fw-crypto — firmware decrypt keys
 
-Decrypt and unpack RED DSMC2 firmware packages. Full explanation:
-[docs/keys.md](../../docs/firmware/keys.md) and [docs/firmware.md](../../docs/firmware/firmware.md).
+The two RSA **decryption** private keys for RED DSMC2 firmware packages. Full
+explanation: [docs/keys.md](../../docs/firmware/keys.md) and
+[docs/firmware.md](../../docs/firmware/firmware.md).
 
-A firmware `.bin` is an RSA-OAEP-wrapped RC4 package. The two RSA **decryption**
-private keys are embedded in the firmware and are included here as `.der` files.
-With them, `unpack_combo.py` gives the full plaintext of any shipped package —
-every OS file, the bootloader, and the application image.
+A firmware `.bin` is an RSA-OAEP-wrapped RC4 package. These two keys are embedded
+in the firmware and included here as `.der` files. With them, any shipped package
+decrypts to full plaintext — every OS file, the bootloader, and the application
+image.
 
-```
+The unpacker is implemented in Rust in [`dsmc-fw-core`](../dsmc-fw-core), which
+finds these keys automatically (exe-relative, or `--keys DIR` / `$DSMC_FW_KEYS`):
+
+```sh
+cd ../dsmc-fw-core
+
 # list the per-model slices of a v3 "combo" package
-python3 unpack_combo.py <combo.bin> --list
+cargo run -- unpack --list <combo.bin>
 
 # extract one model (0x16 = SCARLET-W; see docs/models.md for the full list)
-python3 unpack_combo.py <combo.bin> --extract 0x16 --out DIR
+cargo run -- unpack --extract 0x16 --out DIR <combo.bin>
 
 # extract a standalone v2 (single-model) package
-python3 unpack_combo.py <v2_package.bin> --extract --out DIR
+cargo run -- unpack --extract --out DIR <v2_package.bin>
 ```
-
-Dependency: `pip install pycryptodome`. Run with `python3 -I`.
 
 Files:
 
-- `unpack_combo.py` — the unpacker.
 - `fw_v2_privkey.der` — RSA private key for `DSMC\x02` packages (firmware VA `0x80f60f84`).
 - `fw_v3_privkey.der` — RSA private key for `DSMC\x03` packages (firmware VA `0x80f6164c`).
 

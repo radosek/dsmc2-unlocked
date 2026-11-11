@@ -65,22 +65,23 @@ The `unpack` CLI parity test runs against a real combo when
 
 ## Removal-readiness — Rust CLI ⇄ python parity
 
-Each public python tool now has a byte-for-byte Rust replacement. Parity was
+Each public python tool has a byte-for-byte Rust replacement, now the only
+implementation (the python was removed after parity held). Parity was
 run on real inputs (combo `combo_7.4.1.bin`, real `.preset` files, real NAND
 spare/hdr dumps):
 
-| python tool | Rust replacement | parity proof (real input) | status |
+| python tool | Rust replacement | parity proof (real input) | result |
 |---|---|---|---|
-| `fw-crypto/unpack_combo.py --list` | `dsmc-fw-core unpack --list` | combo TOC + standalone-v2 header listings `diff`-identical | ✅ safe to remove |
-| `fw-crypto/unpack_combo.py --extract` | `dsmc-fw-core unpack --extract` | `diff -r` of extracted trees **byte-identical** (combo slice 0x16: 414 files + bootloader; standalone v2 0x15: 414 files); bootloader sha256 + section summary identical | ✅ safe to remove |
-| `preset/red_preset.py read` | `dsmc-fw-core preset read` | identical `version:`/`name = value` output on every applicable preset (e.g. `SHELL_v2` 3 lines, `motion_camera` 298 lines); non-scheme files rejected by both | ✅ safe to remove |
-| `preset/red_preset.py make` | `dsmc-fw-core preset build` | cross-read identical (Rust-built reads in python and vice-versa; ciphertext differs only by the clear random per-page nonce, as python's own reruns do) | ✅ safe to remove |
-| `rom-recovery/host/nand_list.py` | `dsmc-fw-core recovery list` | prefix mode `diff`-identical (208 objects / 935 objects on `cam` / `full`) and `--raw` mode identical; full object graph, paths, sizes, sort order, and summary counts match | ✅ safe to remove |
+| `fw-crypto/unpack_combo.py --list` | `dsmc-fw-core unpack --list` | combo TOC + standalone-v2 header listings `diff`-identical | ✅ replaced; python removed |
+| `fw-crypto/unpack_combo.py --extract` | `dsmc-fw-core unpack --extract` | `diff -r` of extracted trees **byte-identical** (combo slice 0x16: 414 files + bootloader; standalone v2 0x15: 414 files); bootloader sha256 + section summary identical | ✅ replaced; python removed |
+| `preset/red_preset.py read` | `dsmc-fw-core preset read` | identical `version:`/`name = value` output on every applicable preset (e.g. `SHELL_v2` 3 lines, `motion_camera` 298 lines); non-scheme files rejected by both | ✅ replaced; python removed |
+| `preset/red_preset.py make` | `dsmc-fw-core preset build` | cross-read identical (Rust-built reads in python and vice-versa; ciphertext differs only by the clear random per-page nonce, as python's own reruns do) | ✅ replaced; python removed |
+| `rom-recovery/host/nand_list.py` | `dsmc-fw-core recovery list` | prefix mode `diff`-identical (208 objects / 935 objects on `cam` / `full`) and `--raw` mode identical; full object graph, paths, sizes, sort order, and summary counts match | ✅ replaced; python removed |
 
-**The python in `tools/fw-crypto/`, `tools/preset/`, and `tools/rom-recovery/host/`
-can be retired once this crate is merged and the parity above holds.** It is NOT
-deleted here — removal is a later coordinated cleanup across all three repos
-(RED / dsmc2-unlocked / dsmc2-sdk) after every tool is verified.
+**The python it replaced (`fw-crypto/unpack_combo.py`, `preset/red_preset.py`,
+`rom-recovery/host/nand_list.py`) has been removed** from this repo; the keys in
+`fw-crypto/` and the serial-RX NAND tools in `rom-recovery/host/` remain. The
+same cleanup is tracked for the RED master tree.
 
 ## Cross-repo build note (sibling clones required)
 The PRIVATE `dsmc-fw` CLI (in **dsmc2-sdk**) depends on this crate **and** on

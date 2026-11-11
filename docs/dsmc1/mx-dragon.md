@@ -112,10 +112,10 @@ for all three is v6.3.106.
 
 Each download is a `.zip` holding a read-me and one `force_upgrade/*.bin`. The
 `.bin` is the v2 package; unpack it with
-[tools/fw-crypto/unpack_combo.py](../../tools/fw-crypto):
+[`dsmc-fw-core`](../../tools/dsmc-fw-core):
 
 ```
-python3 unpack_combo.py epic_dragon_6.3.106.bin --extract --out out/
+cargo run --manifest-path tools/dsmc-fw-core/Cargo.toml -- unpack --extract --out out/ epic_dragon_6.3.106.bin
 ```
 
 ## The DSMC2 methods, verified on the real image

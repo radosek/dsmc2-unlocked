@@ -2,7 +2,7 @@
 
 Drop one of these into `/force_preset/` on a MINI-MAG and boot. The camera
 applies it and deletes it, so re-stage it each boot. They were built with
-`red_preset.py` and read back with it.
+[`dsmc-fw-core`](../../dsmc-fw-core) (`preset build` / `preset read`).
 
 | file | sets | effect |
 |---|---|---|
@@ -11,8 +11,8 @@ applies it and deletes it, so re-stage it each boot. They were built with
 To read what a preset contains, or to build your own:
 
 ```
-python3 ../red_preset.py read enable-shell.preset
-python3 ../red_preset.py make my.preset 7 NAME=VALUE [NAME=VALUE ...]
+cargo run --manifest-path ../../dsmc-fw-core/Cargo.toml -- preset read enable-shell.preset
+cargo run --manifest-path ../../dsmc-fw-core/Cargo.toml -- preset build my.preset 7 NAME=VALUE [NAME=VALUE ...]
 ```
 
 These are plain configuration — the flags shown above and nothing else. The

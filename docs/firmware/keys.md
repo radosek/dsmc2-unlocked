@@ -51,13 +51,13 @@ parameters(name UNIQUE, value)      -- CDB key/value pairs applied on upgrade/bo
 
 ### Making and reading presets
 
-[tools/preset/red_preset.py](../../tools/preset/red_preset.py) builds and reads
+[`dsmc-fw-core`](../../tools/dsmc-fw-core) builds and reads
 presets. It reproduces the wxSQLite3 AES-256 codec directly — **no RED
 application, and any OS** with Python and pycryptodome.
 
 ```
-python3 tools/preset/red_preset.py read file.preset
-python3 tools/preset/red_preset.py make shell.preset 7 DEBUG_ENABLE_SHELL=1 COMM_SERIAL_PORT_PROTOCOL=4
+cargo run --manifest-path tools/dsmc-fw-core/Cargo.toml -- preset read file.preset
+cargo run --manifest-path tools/dsmc-fw-core/Cargo.toml -- preset build shell.preset 7 DEBUG_ENABLE_SHELL=1 COMM_SERIAL_PORT_PROTOCOL=4
 ```
 
 The codec: the AES-256 key is the ASCII key bytes repeated to 32 bytes; pages are
@@ -92,7 +92,7 @@ offset   size   content
 ```
 
 With the matching private key you run RSA-OAEP to unwrap the 32-byte RC4 key,
-then RC4 to decrypt the payload. `tools/fw-crypto/unpack_combo.py` does this and
+then RC4 to decrypt the payload. [`dsmc-fw-core`](../../tools/dsmc-fw-core) does this and
 has been run end-to-end against the shipped 7.4.1 build and older archives.
 
 A **version-3 package is a "combo"**: its decrypted payload is a small table of
@@ -111,9 +111,9 @@ The same two keys also open **DSMC1** packages — the generation shares the
 format. Verified against Epic Dragon 6.3.106; see [dsmc1.md](../dsmc1/).
 
 ```
-python3 tools/fw-crypto/unpack_combo.py <combo.bin> --list
-python3 tools/fw-crypto/unpack_combo.py <combo.bin> --extract 0x16 --out DIR   # pick a model
-python3 tools/fw-crypto/unpack_combo.py <v2_package.bin> --extract --out DIR
+cargo run --manifest-path tools/dsmc-fw-core/Cargo.toml -- unpack --list <combo.bin>
+cargo run --manifest-path tools/dsmc-fw-core/Cargo.toml -- unpack --extract 0x16 --out DIR <combo.bin>   # pick a model
+cargo run --manifest-path tools/dsmc-fw-core/Cargo.toml -- unpack --extract --out DIR <v2_package.bin>
 ```
 
 Model tag `0x16` is SCARLET-W; see [docs/models.md](../models.md) for the full list.
