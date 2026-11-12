@@ -322,7 +322,7 @@ fn cmd_diag(c: &Common) -> Result<ExitCode, String> {
             println!("ISP1 heartbeat = 0x{h:X} ({})", if h != 0 { "ticking" } else { "STOPPED — core dead" });
         }
     }
-    println!("(full boot log: pull /log/log.data, then `dsmcdbg log analyze`; map errors to firmware code with `dsmc-re explain-log`)");
+    println!("(full boot log: pull /log/log.data, then run `dsmcdbg log triage <file>` or `dsmcdbg log explain <error_code>`)");
     Ok(ExitCode::SUCCESS)
 }
 
@@ -381,13 +381,16 @@ PER-AREA (thin reads):
   ucd      voltage   temp     x12   x4   state   env   heartbeat   dragon   ddr <tgt>   diag
 
 LOG (offline, no serial — decode + triage exported/pulled logs):
-  log decode <file.enc> [out]      XOR-decode a .enc export (plaintext passes through)
-  log sessions <decoded.txt>       list boot sessions with triage one-liners
-  log clean <decoded.txt> [-o F]   rejoin continuation lines, one file, sessions marked
-  log digest <decoded.txt> [--session N]   denoised event digest per session
-  log health <decoded.txt>         PASS/FAIL on the ISP XAUI link per boot
-  log analyze <decoded.txt> [-o D] split + clean + per-session files + SUMMARY
-  log diff <good.txt> <bad.txt>    working-vs-broken milestone diff
+  log triage <file> [--session N] [--json]  one-stop executive triage report (auto-decodes .enc)
+  log explain <code_or_query>              query human meaning & physical fix for any code
+  log stats <file> [--session N] [--top N]  frequency of each error across sessions + bloat
+  log decode <file.enc> [out]               XOR-decode a .enc export (plaintext passes through)
+  log sessions <decoded.txt>                list boot sessions with triage one-liners
+  log clean <decoded.txt> [-o F]            rejoin continuation lines, one file, sessions marked
+  log digest <decoded.txt> [--session N]    denoised event digest per session
+  log health <decoded.txt>                  PASS/FAIL on the ISP XAUI link per boot
+  log analyze <decoded.txt> [-o D]          split + clean + per-session files + SUMMARY
+  log diff <good.txt> <bad.txt>             working-vs-broken milestone diff
 
   Pipe a decoded log into `dsmc-re explain-log` (sdk) to map each error line
   to the firmware function that raised it.

@@ -1,0 +1,328 @@
+{
+  "soc": "Texas Instruments DM3725 / OMAP3630 (DM3725CBP100)",
+  "trm_reference": "SPRUGN4 (AM/DM37x Multimedia Device Technical Reference Manual)",
+  "regions": [
+    {
+      "name": "GPMC_CS0_NAND",
+      "base": "0x08000000",
+      "size": "0x08000000",
+      "category": "GPMC_MEMORY",
+      "trm_section": "Table 2-1 / Chapter 11 (GPMC CS0 NAND Flash Window)"
+    },
+    {
+      "name": "GPMC_CS1_FPGA",
+      "base": "0x18000000",
+      "size": "0x04000000",
+      "category": "GPMC_MEMORY",
+      "trm_section": "Table 2-1 / Chapter 11 (GPMC CS1 External FPGA Window)"
+    },
+    {
+      "name": "GPMC_CS2_FPGA",
+      "base": "0x1C000000",
+      "size": "0x04000000",
+      "category": "GPMC_MEMORY",
+      "trm_section": "Table 2-1 / Chapter 11 (GPMC CS2 External FPGA Window)"
+    },
+    {
+      "name": "IOB0_DOORBELL",
+      "base": "0x3FFE8000",
+      "size": "0x00001000",
+      "category": "COPROCESSOR_APERTURE",
+      "trm_section": "DSMC2 IOB0 Shared Mailbox Doorbell Bridge"
+    },
+    {
+      "name": "OMAP_SRAM_BOOTROM",
+      "base": "0x40000000",
+      "size": "0x00400000",
+      "category": "ON_CHIP_MEMORY",
+      "trm_section": "Table 2-1 / Chapter 26 (On-Chip ROM and 64KB Internal SRAM @ 0x40200000)"
+    },
+    {
+      "name": "L4_CORE_AP",
+      "base": "0x48000000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 (L4-Core Address Protection / Sonics S3220 Interconnect)"
+    },
+    {
+      "name": "SCM",
+      "base": "0x48002000",
+      "size": "0x00002000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 7 (System Control Module & PADCONF)"
+    },
+    {
+      "name": "PRCM_CM",
+      "base": "0x48004000",
+      "size": "0x00002000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 3 (Clock Management CM)"
+    },
+    {
+      "name": "UART3_CORE_ALIAS",
+      "base": "0x48020000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "UART3 L4-Core Compatibility Window"
+    },
+    {
+      "name": "DSS",
+      "base": "0x48050000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 15 (Display Subsystem & DISPC)"
+    },
+    {
+      "name": "SDMA",
+      "base": "0x48056000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 9 (System DMA Controller)"
+    },
+    {
+      "name": "I2C3",
+      "base": "0x48060000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 18 (High-Speed I2C3 Controller, IRQ 61)"
+    },
+    {
+      "name": "UART1",
+      "base": "0x4806A000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 19 (UART1 Controller, IRQ 72)"
+    },
+    {
+      "name": "UART2",
+      "base": "0x4806C000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 19 (UART2 Controller, IRQ 73)"
+    },
+    {
+      "name": "I2C1",
+      "base": "0x48070000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 18 (High-Speed I2C1 Controller, IRQ 56)"
+    },
+    {
+      "name": "I2C2",
+      "base": "0x48072000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 18 (High-Speed I2C2 Controller, IRQ 57)"
+    },
+    {
+      "name": "GPTIMER10",
+      "base": "0x48086000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 16 (General-Purpose Timer 10, IRQ 46)"
+    },
+    {
+      "name": "GPTIMER11",
+      "base": "0x48088000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 16 (General-Purpose Timer 11, IRQ 47)"
+    },
+    {
+      "name": "MCSPI1",
+      "base": "0x48098000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 20 (McSPI1 Controller, IRQ 65)"
+    },
+    {
+      "name": "MCSPI2",
+      "base": "0x4809A000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 20 (McSPI2 Controller, IRQ 66)"
+    },
+    {
+      "name": "MCSPI3",
+      "base": "0x480B8000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 20 (McSPI3 Controller, IRQ 91)"
+    },
+    {
+      "name": "MCSPI4",
+      "base": "0x480BA000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 20 (McSPI4 Controller, IRQ 48)"
+    },
+    {
+      "name": "INTC",
+      "base": "0x48200000",
+      "size": "0x00001000",
+      "category": "MPU_INTC",
+      "trm_section": "Table 2-2 / Chapter 10 (MPU Interrupt Controller)"
+    },
+    {
+      "name": "PRM",
+      "base": "0x48306000",
+      "size": "0x00002000",
+      "category": "L4_WAKEUP",
+      "trm_section": "Table 2-5 / Chapter 3 (Power and Reset Management)"
+    },
+    {
+      "name": "GPIO1",
+      "base": "0x48310000",
+      "size": "0x00001000",
+      "category": "L4_WAKEUP",
+      "trm_section": "Table 2-5 / Chapter 25 (GPIO1 Controller, IRQ 29)"
+    },
+    {
+      "name": "GPTIMER1",
+      "base": "0x48318000",
+      "size": "0x00001000",
+      "category": "L4_WAKEUP",
+      "trm_section": "Table 2-5 / Chapter 16 (General-Purpose Timer 1, IRQ 37)"
+    },
+    {
+      "name": "L4_PER_AP",
+      "base": "0x49000000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 2 (L4-Per Address Protection / Interconnect Firewall)"
+    },
+    {
+      "name": "UART3",
+      "base": "0x49020000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 19 (UART3 Controller, IRQ 74)"
+    },
+    {
+      "name": "GPTIMER2",
+      "base": "0x49032000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 16 (General-Purpose Timer 2, IRQ 38)"
+    },
+    {
+      "name": "GPTIMER3",
+      "base": "0x49034000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 16 (General-Purpose Timer 3, IRQ 39)"
+    },
+    {
+      "name": "GPTIMER4",
+      "base": "0x49036000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 16 (General-Purpose Timer 4, IRQ 40)"
+    },
+    {
+      "name": "GPTIMER5",
+      "base": "0x49038000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 16 (General-Purpose Timer 5, IRQ 41)"
+    },
+    {
+      "name": "GPTIMER6",
+      "base": "0x4903A000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 16 (General-Purpose Timer 6, IRQ 42)"
+    },
+    {
+      "name": "GPTIMER7",
+      "base": "0x4903C000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 16 (General-Purpose Timer 7, IRQ 43)"
+    },
+    {
+      "name": "GPTIMER8",
+      "base": "0x4903E000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 16 (General-Purpose Timer 8, IRQ 44)"
+    },
+    {
+      "name": "GPTIMER9",
+      "base": "0x49040000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 16 (General-Purpose Timer 9, IRQ 45)"
+    },
+    {
+      "name": "UART4",
+      "base": "0x49042000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 19 (UART4 Controller, IRQ 80)"
+    },
+    {
+      "name": "GPIO2",
+      "base": "0x49050000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 25 (GPIO2 Controller, IRQ 30)"
+    },
+    {
+      "name": "GPIO3",
+      "base": "0x49052000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 25 (GPIO3 Controller, IRQ 31)"
+    },
+    {
+      "name": "GPIO4",
+      "base": "0x49054000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 25 (GPIO4 Controller, IRQ 32)"
+    },
+    {
+      "name": "GPIO5",
+      "base": "0x49056000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 25 (GPIO5 Controller, IRQ 33)"
+    },
+    {
+      "name": "GPIO6",
+      "base": "0x49058000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 25 (GPIO6 Controller, IRQ 34)"
+    },
+    {
+      "name": "IOB1_DOORBELL",
+      "base": "0x4FFE8000",
+      "size": "0x00001000",
+      "category": "COPROCESSOR_APERTURE",
+      "trm_section": "DSMC2 IOB1 Shared Mailbox Doorbell Bridge"
+    },
+    {
+      "name": "SDRC",
+      "base": "0x6D000000",
+      "size": "0x00001000",
+      "category": "L3_CONTROL",
+      "trm_section": "Table 2-1 / Chapter 11 (SDRAM Controller)"
+    },
+    {
+      "name": "GPMC",
+      "base": "0x6E000000",
+      "size": "0x00001000",
+      "category": "L3_CONTROL",
+      "trm_section": "Table 2-1 / Chapter 11 (General-Purpose Memory Controller)"
+    },
+    {
+      "name": "DDR_SDRAM",
+      "base": "0x80000000",
+      "size": "0x20000000",
+      "category": "SDRAM",
+      "trm_section": "Table 2-1 (CS0 SDRAM Space)"
+    }
+  ]
+}

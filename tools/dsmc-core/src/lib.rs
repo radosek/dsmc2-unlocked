@@ -21,6 +21,7 @@
 //!     [`baseline::Golden`] reference, and `assert`/`diff` with tolerances.
 
 pub mod baseline;
+pub mod error_dict;
 pub mod i2c;
 pub mod log;
 pub mod parse;

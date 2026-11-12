@@ -117,16 +117,35 @@ DSMC Log File version 3
 Records are just a transport unit: messages carry their own newlines and run
 straight across record boundaries, so the decoder concatenates records without
 adding anything. The decoded file is still every boot concatenated, and a few
-messages span more than one line. A second tool rejoins those, splits the boots,
-and triages each one:
+messages span more than one line. A suite of commands in `dsmcdbg log` provides full triage:
 
-```
+```sh
+# 1. Flagship Executive Triage (auto-decodes .enc or plaintext, prints verdict & physical fix)
+cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log triage <logfile.enc>
+
+# 2. Interactive dictionary lookup for any error code or symptom
+cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log explain 0x01
+cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log explain LMH0340
+cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log explain 34
+
+# 3. Frequency & bloat analysis
+cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log stats <decoded.txt>
+
+# 4. Deep session inspection
 cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log sessions <decoded.txt>        # list boots
 cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log analyze  <decoded.txt> -o out/ # per-boot files + SUMMARY.txt
-cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log digest   <decoded.txt>        # denoised event digest
+cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log digest   <decoded.txt>        # denoised event digest with error enrichment
 cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log health   <decoded.txt>        # PASS/FAIL on the ISP link per boot
 cargo run --manifest-path tools/dsmcdbg/Cargo.toml -- log diff  <good.txt> <bad.txt>    # compare a working vs a broken boot
 ```
+
+`triage` is the recommended one-stop command: it automatically decodes `.enc` files, analyzes every boot session, evaluates overall health (PASS/FAIL), identifies all hardware/firmware faults ranked by severity, provides plain-English physical causes and action items, and suppresses repetitive noise lines.
+
+`explain` allows searching the reverse-engineered firmware dictionary directly by error code (e.g. `0x01`, `0x1D`, `0x20`), state number (`0..35`), or component name (`LMH0340`, `fan`, `sdi`, `x12`, `sata`).
+
+`stats` aggregates error occurrences across all boot sessions, decodes numeric
+codes into human meaning using the built-in error dictionary (e.g. `SYSTEM_ERROR (34)`,
+`PCS error 103`), and clusters repeated lines to eliminate log bloat.
 
 `analyze` writes one file per boot plus a summary table (line count, duration,
 error count, furthest boot state reached, failure signature). `health` is meant

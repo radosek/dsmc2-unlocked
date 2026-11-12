@@ -122,6 +122,122 @@ fn digest_and_health_run() {
     assert!(hs.contains("OVERALL:"));
 }
 
+#[test]
+fn stats_reports_frequency_and_enrichment() {
+    let dir = tempdir();
+    let f = dir.join("log_with_errors.txt");
+    let test_log = "\
+[0:00:00:001] ( 1%/1%) : initializing cpu usage\n\
+[0:00:01:000] ( 1%/1%) : i2c_read timeout\n\
+[0:00:02:000] ( 1%/1%) : i2c_read timeout\n\
+[0:00:03:000] ( 1%/1%) E: iob (isp_1) PCS error 103: 0x8004002c\n\
+=========\n\
+[0:00:00:001] ( 1%/1%) : initializing cpu usage\n\
+[0:00:01:000] ( 1%/1%) : i2c_read timeout\n\
+[0:00:04:000] ( 1%/1%) E: SYSTEM_ERROR (34)\n\
+[0:00:05:000] ( 1%/1%) E: Error: 0x1d seen\n";
+    std::fs::write(&f, test_log).unwrap();
+
+    // 1. Text mode
+    let out = Command::new(bin())
+        .args(["log", "stats", f.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(s.contains("Sessions:   2"), "got:\n{s}");
+    assert!(s.contains("PCS error 103") || s.contains("PCS_ERROR_103") || s.contains("Code 103"), "got:\n{s}");
+    assert!(s.contains("SYSTEM_ERROR") || s.contains("State 34"), "got:\n{s}");
+    assert!(s.contains("TOP REPEATED / BLOAT LINES"), "got:\n{s}");
+    assert!(s.contains("i2c_read timeout"), "got:\n{s}");
+
+    // 2. JSON mode
+    let out_json = Command::new(bin())
+        .args(["log", "stats", f.to_str().unwrap(), "--json"])
+        .output()
+        .unwrap();
+    assert!(out_json.status.success());
+    let j_str = String::from_utf8_lossy(&out_json.stdout);
+    let v: serde_json::Value = serde_json::from_str(&j_str).unwrap();
+    assert_eq!(v["total_sessions"], 2);
+    assert_eq!(v["total_errors"], 3);
+}
+
+#[test]
+fn explain_cli_queries_codes() {
+    let out = Command::new(bin())
+        .args(["log", "explain", "0x01"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(s.contains("STARTUP_ERROR_0x01"));
+    assert!(s.contains("Primary Board Fault"));
+
+    let out2 = Command::new(bin())
+        .args(["log", "explain", "LMH0340"])
+        .output()
+        .unwrap();
+    assert!(out2.status.success());
+    let s2 = String::from_utf8_lossy(&out2.stdout);
+    assert!(s2.contains("SDI_LMH0340_ERROR"));
+}
+
+#[test]
+fn triage_cli_runs_executive_report() {
+    let dir = tempdir();
+    let f = dir.join("triage_test.txt");
+    let test_log = "\
+[0:00:00:001] ( 1%/1%) : initializing cpu usage\n\
+[0:00:01:000] ( 1%/1%) : BOOT\n\
+[0:00:02:000] ( 1%/1%) : NAND_FS\n\
+[0:00:03:000] ( 1%/1%) : PREVIEW_START\n\
+[0:00:04:000] ( 1%/1%) E: SYSTEM_ERROR (34)\n\
+[0:00:05:000] ( 1%/1%) E: iob (isp_1) PCS error 103: 0x8004002c\n";
+    std::fs::write(&f, test_log).unwrap();
+
+    let out = Command::new(bin())
+        .args(["log", "triage", f.to_str().unwrap()])
+        .output()
+        .unwrap();
+    // Failed session should exit with code 1
+    assert_eq!(out.status.code(), Some(1));
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(s.contains("EXECUTIVE REPORT"));
+    assert!(s.contains("FAIL"));
+    assert!(s.contains("PCS error 103") || s.contains("Code 103"));
+    assert!(s.contains("SYSTEM_ERROR") || s.contains("State 34"));
+
+    // JSON mode
+    let out_json = Command::new(bin())
+        .args(["log", "triage", f.to_str().unwrap(), "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(out_json.status.code(), Some(1));
+    let j_str = String::from_utf8_lossy(&out_json.stdout);
+    let v: serde_json::Value = serde_json::from_str(&j_str).unwrap();
+    assert_eq!(v["healthy"], false);
+
+    // Direct triage of encrypted .enc file (auto-decode)
+    let pad = dsmc_core::log::PAD;
+    let enc: Vec<u8> = test_log
+        .bytes()
+        .enumerate()
+        .map(|(i, b)| pad[i & 0x3ff] ^ b)
+        .collect();
+    let enc_file = dir.join("triage_test.enc");
+    std::fs::write(&enc_file, &enc).unwrap();
+
+    let out_enc = Command::new(bin())
+        .args(["log", "triage", enc_file.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert_eq!(out_enc.status.code(), Some(1));
+    let s_enc = String::from_utf8_lossy(&out_enc.stdout);
+    assert!(s_enc.contains("EXECUTIVE REPORT"));
+    assert!(s_enc.contains("FAIL"));
+}
+
 // tiny unique temp dir without a dev-dep.
 fn tempdir() -> std::path::PathBuf {
     let base = std::env::temp_dir();

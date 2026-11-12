@@ -15,9 +15,12 @@
 //! milestone/failure order, same session split) so the two produce identical
 //! output on the same decoded log.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use regex::Regex;
+use serde::{Deserialize, Serialize};
+
+use crate::error_dict::{ErrorDictionary};
 
 /// The 1024-byte XOR pad, extracted from FW rodata (@0x8109bc6c). Embedded so a
 /// built binary needs no external file — same bytes as
@@ -556,6 +559,184 @@ pub fn py_dict_repr_codes(codes: &[(String, usize)]) -> String {
     format!("{{{}}}", items.join(", "))
 }
 
+// ---------------------------------------------------------------------------
+// log stats & cross-session enrichment
+// ---------------------------------------------------------------------------
+
+/// Aggregated statistics for an error category across sessions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ErrorStatEntry {
+    pub id: String,
+    pub title: String,
+    pub subsystem: String,
+    pub severity: String,
+    pub total_count: usize,
+    pub sessions_affected: Vec<usize>,
+    pub meaning: String,
+    pub action: String,
+    pub sample_line: String,
+}
+
+/// Statistics for high-frequency or repeated lines (bloat detection).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LineRepeatStat {
+    pub normalized_text: String,
+    pub total_count: usize,
+    pub sessions_affected: usize,
+}
+
+/// Multi-session log statistics report.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogStats {
+    pub total_sessions: usize,
+    pub total_lines: usize,
+    pub total_errors: usize,
+    pub total_warns: usize,
+    pub error_frequencies: Vec<ErrorStatEntry>,
+    pub top_repeated_lines: Vec<LineRepeatStat>,
+}
+
+/// Strip timestamps `[d:dd:dd:ddd]` and memory pool stats `(nn%/nn%)` for bloat clustering.
+pub fn normalize_log_line(line: &str) -> String {
+    let ts_prefix = Regex::new(r"^\[\d+:\d+:\d+:\d+\](?:\s*\([^)]*\))?\s*:?\s*").unwrap();
+    if let Some(m) = ts_prefix.find(line) {
+        line[m.end()..].trim().to_string()
+    } else {
+        line.trim().to_string()
+    }
+}
+
+/// Compute frequency of each error and detect repeated bloat lines across sessions.
+pub fn compute_stats(
+    sessions: &[Vec<String>],
+    p: &Patterns,
+    dict: &ErrorDictionary,
+) -> LogStats {
+    let total_sessions = sessions.len();
+    let mut total_lines = 0usize;
+    let mut total_errors = 0usize;
+    let mut total_warns = 0usize;
+
+    // Track error matches by error ID
+    struct TempErrorStat {
+        title: String,
+        subsystem: String,
+        severity: String,
+        meaning: String,
+        action: String,
+        sample_line: String,
+        count: usize,
+        sessions: Vec<usize>,
+    }
+    let mut err_map: HashMap<String, TempErrorStat> = HashMap::new();
+
+    // Track repeated lines for bloat analysis: normalized_text -> (count, set of sessions)
+    let mut line_counts: HashMap<String, (usize, Vec<usize>)> = HashMap::new();
+
+    for (s_idx, session) in sessions.iter().enumerate() {
+        total_lines += session.len();
+        for line in session {
+            match p.severity(line) {
+                Some('E') => total_errors += 1,
+                Some('W') => total_warns += 1,
+                _ => {}
+            }
+
+            // Match against error dictionary
+            if let Some(em) = dict.match_line(line) {
+                let entry = err_map.entry(em.id.clone()).or_insert_with(|| TempErrorStat {
+                    title: em.title,
+                    subsystem: em.subsystem,
+                    severity: em.severity,
+                    meaning: em.meaning,
+                    action: em.action,
+                    sample_line: line.trim().to_string(),
+                    count: 0,
+                    sessions: Vec::new(),
+                });
+                entry.count += 1;
+                if !entry.sessions.contains(&s_idx) {
+                    entry.sessions.push(s_idx);
+                }
+            } else if p.any_failure(line) {
+                // If line matched a failure signature not explicitly in dict
+                let label = p
+                    .failures
+                    .iter()
+                    .find(|(_, rx)| rx.is_match(line))
+                    .map(|(l, _)| *l)
+                    .unwrap_or("UNKNOWN_FAILURE");
+
+                let entry = err_map
+                    .entry(format!("SIG_{label}"))
+                    .or_insert_with(|| TempErrorStat {
+                        title: format!("Failure Signature: {label}"),
+                        subsystem: "System Diagnostic".to_string(),
+                        severity: "Error".to_string(),
+                        meaning: format!("Matched known failure signature pattern '{label}'"),
+                        action: "Check camera diagnostic logs and hardware connections.".to_string(),
+                        sample_line: line.trim().to_string(),
+                        count: 0,
+                        sessions: Vec::new(),
+                    });
+                entry.count += 1;
+                if !entry.sessions.contains(&s_idx) {
+                    entry.sessions.push(s_idx);
+                }
+            }
+
+            // Bloat tracker
+            let norm = normalize_log_line(line);
+            if !norm.is_empty() {
+                let r_entry = line_counts.entry(norm).or_insert((0, Vec::new()));
+                r_entry.0 += 1;
+                if !r_entry.1.contains(&s_idx) {
+                    r_entry.1.push(s_idx);
+                }
+            }
+        }
+    }
+
+    // Sort errors by total count descending
+    let mut error_frequencies: Vec<ErrorStatEntry> = err_map
+        .into_iter()
+        .map(|(id, stat)| ErrorStatEntry {
+            id,
+            title: stat.title,
+            subsystem: stat.subsystem,
+            severity: stat.severity,
+            total_count: stat.count,
+            sessions_affected: stat.sessions,
+            meaning: stat.meaning,
+            action: stat.action,
+            sample_line: stat.sample_line,
+        })
+        .collect();
+    error_frequencies.sort_by(|a, b| b.total_count.cmp(&a.total_count));
+
+    // Sort repeated lines by count descending, keeping only lines appearing >= 2 times
+    let mut top_repeated_lines: Vec<LineRepeatStat> = line_counts
+        .into_iter()
+        .filter(|(_, (cnt, _))| *cnt >= 2)
+        .map(|(text, (cnt, sess))| LineRepeatStat {
+            normalized_text: text,
+            total_count: cnt,
+            sessions_affected: sess.len(),
+        })
+        .collect();
+    top_repeated_lines.sort_by(|a, b| b.total_count.cmp(&a.total_count));
+    top_repeated_lines.truncate(50); // top 50 repeated bloat lines
+
+    LogStats {
+        total_sessions,
+        total_lines,
+        total_errors,
+        total_warns,
+        error_frequencies,
+        top_repeated_lines,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -653,5 +834,43 @@ mod tests {
         assert_eq!(sessions.len(), 1);
         assert_eq!(sessions[0].len(), 1);
         assert!(sessions[0][0].contains("continuation-no-ts"));
+    }
+
+    #[test]
+    fn stats_computes_frequencies_and_bloat() {
+        let p = Patterns::new();
+        let dict = ErrorDictionary::new();
+        let s0 = vec![
+            "[0:00:00:001] ( 1%/1%) : initializing cpu usage".to_string(),
+            "[0:00:01:000] ( 1%/1%) : i2c_read timeout".to_string(),
+            "[0:00:02:000] ( 1%/1%) : i2c_read timeout".to_string(),
+            "[0:00:03:000] ( 1%/1%) E: iob (isp_1) PCS error 103: 0x8004002c".to_string(),
+        ];
+        let s1 = vec![
+            "[0:00:00:001] ( 1%/1%) : initializing cpu usage".to_string(),
+            "[0:00:01:000] ( 1%/1%) : i2c_read timeout".to_string(),
+            "[0:00:05:000] ( 1%/1%) E: SYSTEM_ERROR happened".to_string(),
+        ];
+        let sessions = vec![s0, s1];
+        let stats = compute_stats(&sessions, &p, &dict);
+
+        assert_eq!(stats.total_sessions, 2);
+        assert_eq!(stats.total_lines, 7);
+        assert_eq!(stats.total_errors, 2); // 2 lines with E:
+
+        // Check PCS_ERROR_103 in stats
+        let pcs = stats.error_frequencies.iter().find(|e| e.id == "PCS_ERROR_103").unwrap();
+        assert_eq!(pcs.total_count, 1);
+        assert_eq!(pcs.sessions_affected, vec![0]);
+
+        // Check SYSTEM_ERROR_34 in stats
+        let sys = stats.error_frequencies.iter().find(|e| e.id == "SYSTEM_ERROR_34").unwrap();
+        assert_eq!(sys.total_count, 1);
+        assert_eq!(sys.sessions_affected, vec![1]);
+
+        // Check bloat detection: "i2c_read timeout" appeared 3 times across 2 sessions
+        let bloat = stats.top_repeated_lines.iter().find(|r| r.normalized_text == "i2c_read timeout").unwrap();
+        assert_eq!(bloat.total_count, 3);
+        assert_eq!(bloat.sessions_affected, 2);
     }
 }

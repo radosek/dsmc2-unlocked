@@ -27,3 +27,49 @@ dumps/
 !tools/red-log-decoder/log_xor_table.bin
 # Same pad, embedded into dsmc-core via include_bytes! for `dsmcdbg log decode`.
 !tools/dsmc-core/src/log_xor_table.bin
+
+# DSMC2 Virtual Brain Emulator
+# Proprietary firmware, images, and user assets must NEVER be committed
+firmware_store/
+user_firmware/
+*.pkg
+*.dump
+*.preset
+*.r3d
+*.raw
+
+# Build and compilation artifacts
+target/
+build/
+bin/
+obj/
+*.exe
+*.dll
+*.pdb
+*.o
+*.a
+*.so
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env/
+.pytest_cache/
+.pytest_temp/
+
+# System, test artifacts, and runtime logs
+logs/
+*.log
+.system_generated/
+.idea/
+.vscode/
+persistent_store/
+snapshots/
+*.dsmc2
+test_report.json
+
+# Research submodule / clone
+research/
+.dev_docs/
