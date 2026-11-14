@@ -30,6 +30,24 @@ tools, so that owners can maintain hardware RED no longer sells.
 - **Follow it** — a Discord tracks this work and the build's release; for an invite or any
   question, email **radosek@pm.me** (see [Community & contact](#community--contact)).
 
+> **Context.** This is independent research on hardware the author owns. The goal
+> is repair and preservation. The focus is the **MINI-MAG media**, which RED has
+> discontinued and no longer makes parts for — so there is no RED media product or
+> service that this work competes with.
+>
+> RED **stopped selling** DSMC2 camera bodies in December 2022 ([Discontinued
+> Sales: DSMC2 and RANGER](https://support.red.com/hc/en-us/articles/12932130721299-Discontinued-Sales-DSMC2-and-RANGER)).
+> RED still offers technical support and service for the bodies, "parts
+> availability permitting", and DSMC2 is **not** on RED's
+> [no-longer-repairable list](https://support.reddigitalcinema.com/hc/en-us/articles/1500000253342-Discontinued-Products)
+> (which names RED ONE, MYSTERIUM-X and DRAGON). After the Nikon acquisition, Nikon
+> stated it planned no changes to RED's lineup and that warranty, repair and
+> product support would continue.
+>
+> The **RED MINI-MAG 1TB, 512GB and 240GB** media, by contrast, *is* on that
+> discontinued-products page, marked "repair parts no longer available" — which is
+> why this repository documents the cheap-SSD media path in full.
+
 ## There is more — the private contributor hub (`dsmc2-sdk`)
 
 > **This public repo is the owner-facing slice.** The full reverse-engineering — the
@@ -45,7 +63,9 @@ The platform is reverse-engineered end to end. What is already done and document
 - Full boot flow map, boot-failure diagnostics, `SYSTEM_ERROR 34` gate trace + repair tree,
   complete `Startup Error 0x01–0x07` latch map (incl. the exact `0x02` /env-signature cause).
 - Bootloader analysis: loader M2 RE, bootloader-from-package, size/partition layout.
-- Firmware package format + signing, decryption (both decrypt keys), `/env` signature scheme.
+- Firmware package format + the signature scheme, decryption (both embedded decrypt keys), the
+  own-key signing path (`env_sign` / `own-key`; no RED package signing key exists or is needed),
+  `/env` signature algorithm.
 
 **Application & subsystems**
 - Whole DSMC2 app decompiled, labeled, characterized: HW_CAP map + hidden debug variables,
@@ -91,24 +111,6 @@ The platform is reverse-engineered end to end. What is already done and document
 **Also covered**
 - DSMC1 (EPIC/DRAGON) findings, bug-hunt rounds (UI boot, SSD write), LCD panel swap, disk
   support extension.
-
-> **Context.** This is independent research on hardware the author owns. The goal
-> is repair and preservation. The focus is the **MINI-MAG media**, which RED has
-> discontinued and no longer makes parts for — so there is no RED media product or
-> service that this work competes with.
->
-> RED **stopped selling** DSMC2 camera bodies in December 2022 ([Discontinued
-> Sales: DSMC2 and RANGER](https://support.red.com/hc/en-us/articles/12932130721299-Discontinued-Sales-DSMC2-and-RANGER)).
-> RED still offers technical support and service for the bodies, "parts
-> availability permitting", and DSMC2 is **not** on RED's
-> [no-longer-repairable list](https://support.reddigitalcinema.com/hc/en-us/articles/1500000253342-Discontinued-Products)
-> (which names RED ONE, MYSTERIUM-X and DRAGON). After the Nikon acquisition, Nikon
-> stated it planned no changes to RED's lineup and that warranty, repair and
-> product support would continue.
->
-> The **RED MINI-MAG 1TB, 512GB and 240GB** media, by contrast, *is* on that
-> discontinued-products page, marked "repair parts no longer available" — which is
-> why this repository documents the cheap-SSD media path in full.
 
 ## Quickstart — the tools
 
