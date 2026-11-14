@@ -30,6 +30,68 @@ tools, so that owners can maintain hardware RED no longer sells.
 - **Follow it** — a Discord tracks this work and the build's release; for an invite or any
   question, email **radosek@pm.me** (see [Community & contact](#community--contact)).
 
+## There is more — the private contributor hub (`dsmc2-sdk`)
+
+> **This public repo is the owner-facing slice.** The full reverse-engineering — the
+> subsystem findings, the reference maps, the buildable SDK, and the RE tooling — lives in a
+> separate **private** repository, **`dsmc2-sdk`**, the contributor hub. Private here is a
+> *timing* gate, not secrecy: owner-ready, safe material is routed out to this public repo as
+> it matures. For access, email **radosek@pm.me**.
+
+The platform is reverse-engineered end to end. What is already done and documented in
+`dsmc2-sdk` (summary — this public repo carries the owner-facing subset):
+
+**Boot & firmware**
+- Full boot flow map, boot-failure diagnostics, `SYSTEM_ERROR 34` gate trace + repair tree,
+  complete `Startup Error 0x01–0x07` latch map (incl. the exact `0x02` /env-signature cause).
+- Bootloader analysis: loader M2 RE, bootloader-from-package, size/partition layout.
+- Firmware package format + signing, decryption (both decrypt keys), `/env` signature scheme.
+
+**Application & subsystems**
+- Whole DSMC2 app decompiled, labeled, characterized: HW_CAP map + hidden debug variables,
+  RTTI class map, app-subsystem map (see Ghidra block for function counts).
+- Calibration subsystem: file integrity, serial provenance, media RC4, command surface. Plus
+  CDB2 SQL schema, side module, Wi-Fi (Redpine), SATA/CDB upgrade, RCP protocol, RED protocol
+  speed, DSP C64x.
+- Sensor readout width / 6K, ISP 6K tiling chain.
+
+**Peripherals (the whole stack, not just the ARM app)**
+- ISP + IOB Xtensa cores named & characterized, ISP encode pipeline, LSB FPGA named &
+  characterized, RSB/SB, 1-Wire signature + sensor-ID, shared-code map, Xtensa calling conv.
+
+**Reference maps**
+- OMAP memory map, I2C device map, UCD register map, power-rail map, FileX/NetX/ThreadX ABI,
+  RTOS lib internals, ThreadX source validation, 59C golden baseline.
+
+**Buildable SDK & tooling**
+- Linker-symbol sets (app + RTOS + loader + commands), clean reworked C of key subsystems
+  (hw_cap, media-auth, record/codec, media/clip, playback, serial-2), engineering shell
+  commands as injectable C, patch framework (`patch_741`, named patch sets incl. `own-key`),
+  feature-menu applier (`redml`) with safe-zone analysis.
+- Private host CLIs: `dsmc-fw` (build/patch/sign/flash, fail-closed brick-gate), `dsmc-re`
+  (RE/architecture-query), `redtools-rs`, `camtool-rs`, `rftp-rs`; bench flasher + boot-log
+  puller (live-proven).
+- RE tooling: LLM-assisted naming workflow, BSim/FID scripts.
+
+**Ghidra reverse-engineering (the built state behind the symbols)**
+- The app is fully analyzed and labeled: **`SYMBOL_MAP.txt` — 3530 firmware function addresses
+  recovered by name**; the function DB (`redfw.sqlite`, below) carries **4315 named functions**.
+  (The labeled Ghidra projects themselves live in the private RED working tree — bulky to mirror
+  and not needed to build the SDK; `dsmc2-sdk` ships the DB, the exports, and the rebuild recipe.)
+- Function DB: `redfw.sqlite` (+ diffable JSON export) — functions, call graph, string xrefs,
+  OMAP MMIO touch-points — queryable via `redq` / `dsmc-re q` (`who-calls`, xrefs, stats). A
+  loader DB (`bl741`) too.
+- Exported tables: RTTI/vtable map, globals report, handler/dispatch tables, struct-candidate
+  mining (`struct_offsets`, `boot_env_structs.h`), source-tree/layout reconstruction from log
+  strings.
+- Ghidra scripts + full rebuild recipe: `DecFn`, `RefsToRange`, `WhoCalls`, `LabelFromLogStrings`
+  (auto-naming from `__FILE__`/`__FUNCTION__` log descriptors), module split, struct/table/RTTI
+  scanners, OMAP register labeling, the Xtensa cspec patch, serial-redaction.
+
+**Also covered**
+- DSMC1 (EPIC/DRAGON) findings, bug-hunt rounds (UI boot, SSD write), LCD panel swap, disk
+  support extension.
+
 > **Context.** This is independent research on hardware the author owns. The goal
 > is repair and preservation. The focus is the **MINI-MAG media**, which RED has
 > discontinued and no longer makes parts for — so there is no RED media product or
