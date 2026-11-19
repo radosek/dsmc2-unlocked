@@ -20,7 +20,7 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use dsmc_fw_core::{package, preset, recovery, redone};
+use dsmc_fw_core::{fpga, package, preset, recovery, redone};
 
 /// (tagged pages, header chunks) loaded from a NAND dump, fed to list_objects.
 type NandDump = (Vec<(u64, recovery::SpareTag)>, Vec<recovery::HeaderChunk>);
@@ -31,6 +31,7 @@ dsmc-fw-core — PUBLIC DSMC2 firmware read/decrypt/preset/recovery CLI
 USAGE:
   dsmc-fw-core unpack --list <combo.bin>
   dsmc-fw-core unpack --extract [TYPE] [--out DIR] [--keys DIR] <combo.bin>
+  dsmc-fw-core fpga unpack <wlsbfpga.N.bin> [--out FILE]
   dsmc-fw-core preset read  <file.preset>
   dsmc-fw-core preset build <out.preset> <version> NAME=VALUE [NAME=VALUE ...]
   dsmc-fw-core preset diff  <a.preset> <b.preset>
@@ -64,6 +65,7 @@ fn main() -> ExitCode {
 fn run(args: &[String]) -> Result<(), String> {
     match args.first().map(String::as_str) {
         Some("unpack") => cmd_unpack(&args[1..]),
+        Some("fpga") => cmd_fpga(&args[1..]),
         Some("preset") => cmd_preset(&args[1..]),
         Some("recovery") => cmd_recovery(&args[1..]),
         Some("redone") => cmd_redone(&args[1..]),
@@ -209,6 +211,59 @@ fn cmd_unpack(args: &[String]) -> Result<(), String> {
     let off = hit.offset as usize;
     let end = off + hit.size as usize;
     extract_v2_to(&buf[off..end], &v2_key, Path::new(&out))?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// fpga  (LSB-FPGA bitstream unpack: zlib + RH deinterleave -> standard .bit)
+// ---------------------------------------------------------------------------
+
+fn cmd_fpga(args: &[String]) -> Result<(), String> {
+    match args.first().map(String::as_str) {
+        Some("unpack") => fpga_unpack(&args[1..]),
+        _ => Err(format!("fpga: expected `unpack`\n\n{USAGE}")),
+    }
+}
+
+fn fpga_unpack(args: &[String]) -> Result<(), String> {
+    let mut input: Option<String> = None;
+    let mut out: Option<String> = None;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--out" => {
+                i += 1;
+                out = Some(args.get(i).ok_or("--out needs a file path")?.clone());
+            }
+            other if other.starts_with("--") => return Err(format!("unknown flag {other:?}")),
+            other => input = Some(other.to_string()),
+        }
+        i += 1;
+    }
+    let input = input.ok_or("fpga unpack: missing <wlsbfpga.N.bin>")?;
+    let buf = std::fs::read(&input).map_err(|e| format!("read {input}: {e}"))?;
+    let bs = fpga::unpack(&buf)?;
+
+    // Default output name: alongside the input, ".bin" -> ".bit".
+    let out = out.unwrap_or_else(|| {
+        let p = Path::new(&input);
+        let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("wlsbfpga");
+        p.with_file_name(format!("{stem}.bit"))
+            .to_string_lossy()
+            .into_owned()
+    });
+    std::fs::write(&out, &bs.bits).map_err(|e| format!("write {out}: {e}"))?;
+
+    println!("decoded {} B Xilinx bitstream -> {out}", bs.bits.len());
+    match bs.sync_off {
+        Some(48) => println!("  sync AA995566 @ byte 48 (canonical)"),
+        Some(n) => println!("  sync AA995566 @ byte {n}"),
+        None => println!("  !! sync AA995566 NOT found — deinterleave may be wrong"),
+    }
+    match bs.idcode {
+        Some(id) => println!("  IDCODE 0x{id:08x} = {}", bs.part()),
+        None => println!("  IDCODE not found"),
+    }
     Ok(())
 }
 

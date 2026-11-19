@@ -21,6 +21,7 @@
 //! `tools/preset`, `tools/rom-recovery`) so the Python can be retired once the
 //! Rust is proven in the field.
 
+pub mod fpga;
 pub mod package;
 pub mod preset;
 pub mod rc4;
