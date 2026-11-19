@@ -21,8 +21,11 @@ from emulator.core.bus import (
     DM37XX_TRM_MEMORY_MAP,
     UnmappedMemoryAccessError,
 )
-from emulator.devices.l4_interconnect import OmapL4Ap, OmapScm, OmapPrm, OmapSdrc
+from emulator.devices.l4_interconnect import OmapL4Ap, OmapScm, OmapScmId, OmapPrm, OmapSdrc
 from emulator.devices.mcspi import OmapMcspi
+from emulator.devices.mcbsp import OmapMcBSP
+from emulator.devices.hdq_onewire import OmapHdq1Wire
+from emulator.devices.cam_isp import OmapCamIsp
 from emulator.coprocessors.c2c import C2cTransport, CoprocessorSpiTarget
 
 
@@ -55,6 +58,7 @@ def test_all_registered_camera_devices_match_dm37xx_trm_table(camera):
         # L4-Core / L4-Wakeup / L4-Per Interconnect & Control
         0x48000000: OmapL4Ap,
         0x48002000: OmapScm,
+        0x4830A000: OmapScmId,
         0x48004000: type(camera.prcm),
         0x48306000: OmapPrm,
         0x49000000: OmapL4Ap,
@@ -66,6 +70,14 @@ def test_all_registered_camera_devices_match_dm37xx_trm_table(camera):
         0x4809A000: OmapMcspi,
         0x480B8000: OmapMcspi,
         0x480BA000: OmapMcspi,
+        # McBSP 2..5
+        0x49022000: OmapMcBSP,
+        0x49024000: OmapMcBSP,
+        0x49026000: OmapMcBSP,
+        0x48096000: OmapMcBSP,
+        # HDQ / 1-Wire & Camera ISP
+        0x480B2000: OmapHdq1Wire,
+        0x480BC000: OmapCamIsp,
         # GPTimers 1..11
         0x48318000: type(camera.timers[1]),
         0x49032000: type(camera.timers[2]),

@@ -25,7 +25,22 @@ from emulator.devices.i2c_olpf import OlpfEeprom
 from emulator.devices.gpmc import OmapGpmc
 from emulator.devices.sdma import OmapSdma
 from emulator.devices.mcspi import OmapMcspi, MCSPI_MAP
-from emulator.devices.l4_interconnect import OmapL4Ap, OmapScm, OmapPrm, OmapSdrc
+from emulator.devices.mcbsp import OmapMcBSP, MCBSP_MAP
+from emulator.devices.cam_isp import OmapCamIsp
+from emulator.devices.hdq_onewire import OmapHdq1Wire
+from emulator.devices.i2c_ucd import (
+    UcdPowerSequencer,
+    make_iob_ucd9090,
+    make_isp_ucd9090,
+    make_sensor_ucd90160,
+)
+from emulator.devices.i2c_dsmc2_chips import (
+    Si5346ClockSynth,
+    Dac7578SensorDac,
+    FocalTechTouch,
+    FixedIdI2cDevice,
+)
+from emulator.devices.l4_interconnect import OmapL4Ap, OmapScm, OmapScmId, OmapPrm, OmapSdrc
 from emulator.devices.accessory_bus import AccessoryBus, ModuleDescriptor
 from emulator.devices.rig_manager import RigManager, ConnectorPosition
 from emulator.coprocessors.c2c import C2cTransport, IobDoorbellDevice
@@ -124,6 +139,9 @@ class Dsmc2Camera:
         self.scm = OmapScm()
         self.bus.register_device(OmapScm.BASE_ADDR, OmapScm.SIZE, self.scm)
 
+        self.scm_id = OmapScmId()
+        self.bus.register_device(OmapScmId.BASE_ADDR, OmapScmId.SIZE, self.scm_id)
+
         self.prcm = OmapPrcm(self.cpu)
         self.bus.register_device(OmapPrcm.BASE_ADDR, OmapPrcm.SIZE, self.prcm)
 
@@ -164,27 +182,58 @@ class Dsmc2Camera:
             self.bus.register_device(base, 0x1000, ctrl)
 
         # Attach I2C Slaves:
-        # I2C1: Power Management (TWL4030 @ 0x48), Thermal (TMP411 @ 0x4C), LED Driver (0x45)
+        # I2C1: Power Management (TWL4030 @ 0x48), Thermal (TMP411 @ 0x4C), LED Driver (0x45),
+        #       IOB PMBus UCD9090 (0x7C), RSB Fan Driver (0x4D), RSB OLPF Expander (0x38)
         self.pmic = Twl4030Pmic(0x48)
         self.thermal = Tmp411Thermal(0x4C)
+        self.ucd_iob = make_iob_ucd9090(0x7C)
         self.i2c[1].attach_slave(I2cSlave(0x45))
         self.i2c[1].attach_slave(self.pmic)
         self.i2c[1].attach_slave(self.thermal)
+        self.i2c[1].attach_slave(self.ucd_iob)
+        self.i2c[1].attach_slave(FixedIdI2cDevice(0x4D, "RSB_FAN", 0x01))
+        self.i2c[1].attach_slave(FixedIdI2cDevice(0x38, "RSB_OLPF", 0x00))
         self.i2c[1].attach_slave(Twl4030Pmic(0x49))
         self.i2c[1].attach_slave(Twl4030Pmic(0x4A))
         self.i2c[1].attach_slave(Twl4030Pmic(0x4B))
         self.i2c[1].attach_slave(Twl4030Pmic(0x1B))
         self.i2c[1].attach_slave(Twl4030Pmic(0x19))
 
-        # I2C2: Optical Low Pass Filter (OLPF EEPROM @ 0x54)
+        # I2C2: Optical Low Pass Filter (OLPF EEPROM @ 0x54), ISP UCD9090 (0x70),
+        #       Sensor UCD90160 (0x65), Si5346 Clock Synth (0x6C), Sensor DAC7578 (0x49/0x4B),
+        #       FocalTech Touch 7.0 (0x3E), LSB FPGA Temp (0x4C), LSB Video Clk Gen (0x67)
         self.olpf = OlpfEeprom(0x54)
+        self.ucd_isp = make_isp_ucd9090(0x70)
+        self.ucd_sensor = make_sensor_ucd90160(0x65)
+        self.si5346 = Si5346ClockSynth(0x6C)
+        self.sensor_dac1 = Dac7578SensorDac(0x49)
+        self.sensor_dac2 = Dac7578SensorDac(0x4B)
+        self.focaltech = FocalTechTouch(0x3E)
         self.i2c[2].attach_slave(self.olpf)
+        self.i2c[2].attach_slave(self.ucd_isp)
+        self.i2c[2].attach_slave(self.ucd_sensor)
+        self.i2c[2].attach_slave(self.si5346)
+        self.i2c[2].attach_slave(self.sensor_dac1)
+        self.i2c[2].attach_slave(self.sensor_dac2)
+        self.i2c[2].attach_slave(self.focaltech)
+        self.i2c[2].attach_slave(FixedIdI2cDevice(0x4C, "LSB_FPGA_TEMP", 0x55))
+        self.i2c[2].attach_slave(FixedIdI2cDevice(0x67, "LSB_VID_CLK", 0xC0))
 
-        # I2C3: Atmel maXTouch touch controller (0x4B), EDID EEPROM (0x50), and PMIC sub-bus
+        # I2C3: Atmel maXTouch touch controller (0x4B), EDID EEPROM (0x50), PMIC sub-bus,
+        #       and live single-head bus-2 scan targets (0x70 UCD9090, 0x65 UCD90160,
+        #       0x3E FocalTech, 0x3B Audio Codec, 0x57 SDI Serializer, 0x27 LCD7 GPIO Exp)
         self.maxtouch = MaXTouchDevice(0x4B, irq_callback=lambda: self.intc.assert_irq(58))
         self.edid = EdidEeprom(0x50)
+        self.ucd_iob_bus2 = make_iob_ucd9090(0x70)
+        self.focaltech_rear = FocalTechTouch(0x3E)
         self.i2c[3].attach_slave(self.maxtouch)
         self.i2c[3].attach_slave(self.edid)
+        self.i2c[3].attach_slave(self.ucd_iob_bus2)
+        self.i2c[3].attach_slave(self.ucd_sensor)
+        self.i2c[3].attach_slave(self.focaltech_rear)
+        self.i2c[3].attach_slave(FixedIdI2cDevice(0x3B, "IOB_AUDIO_CODEC", 0x0C))
+        self.i2c[3].attach_slave(FixedIdI2cDevice(0x57, "IOB_SDI_SER", 0x00))
+        self.i2c[3].attach_slave(FixedIdI2cDevice(0x27, "LCD7_GPIO_EXP", 0x00))
         self.i2c[3].attach_slave(Twl4030Pmic(0x48))
         self.i2c[3].attach_slave(Twl4030Pmic(0x49))
         self.i2c[3].attach_slave(Twl4030Pmic(0x4A))
@@ -226,6 +275,19 @@ class Dsmc2Camera:
             spi = OmapMcspi(port_id, base, irq, intc=self.intc)
             self.mcspi[port_id] = spi
             self.bus.register_device(base, 0x1000, spi)
+
+        # 10d. Multi-Channel Buffered Serial Ports (McBSP 2..5), HDQ / 1-Wire & OMAP Camera ISP
+        self.mcbsp: Dict[int, OmapMcBSP] = {}
+        for mcbsp_id, (base, irq) in MCBSP_MAP.items():
+            bsp = OmapMcBSP(mcbsp_id, irq, intc=self.intc)
+            self.mcbsp[mcbsp_id] = bsp
+            self.bus.register_device(base, OmapMcBSP.SIZE, bsp)
+
+        self.hdq = OmapHdq1Wire(intc=self.intc)
+        self.bus.register_device(OmapHdq1Wire.BASE_ADDR, OmapHdq1Wire.SIZE, self.hdq)
+
+        self.cam_isp = OmapCamIsp()
+        self.bus.register_device(OmapCamIsp.BASE_ADDR, OmapCamIsp.SIZE, self.cam_isp)
 
         # 11. SPI-Backed Chip-to-Chip (C2C) Mailbox & Coprocessor ASICs
         # Note: 0x49000000 is L4-PER AP (registered above as self.l4_per_ap);

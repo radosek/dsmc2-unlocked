@@ -135,6 +135,47 @@ class OmapScm(Device):
             self.registers[offset] = val
 
 
+class OmapScmId(Device):
+    """
+    OMAP3630 / DM3725 System Control Module Identification Window (SCM_ID) at 0x4830A000 (size 0x1000).
+    TRM Reference: SPRUGN4 Table 2-5 / Chapter 7.
+      - CONTROL_IDCODE (0x0204): 0x1B89102F (DM3725 / OMAP3630 ES1.2)
+      - CONTROL_DIE_ID (0x0218..0x0224): synthetic 128-bit SoC die identifier (never real hardware ID).
+    """
+
+    BASE_ADDR = 0x4830A000
+    SIZE = 0x1000
+
+    REG_IDCODE = 0x0204
+    REG_DIE_ID_0 = 0x0218
+    REG_DIE_ID_1 = 0x021C
+    REG_DIE_ID_2 = 0x0220
+    REG_DIE_ID_3 = 0x0224
+
+    DEFAULT_DIE_ID = (0x52454432, 0x37323500, 0x00000001, 0x5642524E)
+
+    def __init__(self, idcode: int = 0x1B89102F, die_id=DEFAULT_DIE_ID):
+        self.idcode = int(idcode) & 0xFFFFFFFF
+        self.die_id = tuple(int(w) & 0xFFFFFFFF for w in die_id)
+        self.registers: Dict[int, int] = {}
+
+    def read(self, offset: int, size: int) -> int:
+        if offset == self.REG_IDCODE:
+            return self.idcode
+        elif offset == self.REG_DIE_ID_0:
+            return self.die_id[0]
+        elif offset == self.REG_DIE_ID_1:
+            return self.die_id[1]
+        elif offset == self.REG_DIE_ID_2:
+            return self.die_id[2]
+        elif offset == self.REG_DIE_ID_3:
+            return self.die_id[3]
+        return self.registers.get(offset, 0x00000000)
+
+    def write(self, offset: int, size: int, value: int):
+        self.registers[offset] = value & 0xFFFFFFFF
+
+
 class OmapPrm(Device):
     """
     OMAP3630 / DM3725 L4-Wakeup Power and Reset Management (PRM) at 0x48306000 (size 0x2000).

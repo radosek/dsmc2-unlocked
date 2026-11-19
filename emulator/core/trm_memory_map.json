@@ -129,6 +129,13 @@
       "trm_section": "Table 2-3 / Chapter 16 (General-Purpose Timer 11, IRQ 47)"
     },
     {
+      "name": "MCBSP5",
+      "base": "0x48096000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 21 (McBSP5 Controller, IRQ 27)"
+    },
+    {
       "name": "MCSPI1",
       "base": "0x48098000",
       "size": "0x00001000",
@@ -141,6 +148,13 @@
       "size": "0x00001000",
       "category": "L4_CORE",
       "trm_section": "Table 2-3 / Chapter 20 (McSPI2 Controller, IRQ 66)"
+    },
+    {
+      "name": "HDQ",
+      "base": "0x480B2000",
+      "size": "0x00001000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 22 (HDQ / 1-Wire Controller, IRQ 58)"
     },
     {
       "name": "MCSPI3",
@@ -157,6 +171,13 @@
       "trm_section": "Table 2-3 / Chapter 20 (McSPI4 Controller, IRQ 48)"
     },
     {
+      "name": "CAM_ISP",
+      "base": "0x480BC000",
+      "size": "0x00004000",
+      "category": "L4_CORE",
+      "trm_section": "Table 2-3 / Chapter 6 (OMAP3 Camera ISP / CCDC Subsystem)"
+    },
+    {
       "name": "INTC",
       "base": "0x48200000",
       "size": "0x00001000",
@@ -169,6 +190,13 @@
       "size": "0x00002000",
       "category": "L4_WAKEUP",
       "trm_section": "Table 2-5 / Chapter 3 (Power and Reset Management)"
+    },
+    {
+      "name": "SCM_ID",
+      "base": "0x4830A000",
+      "size": "0x00001000",
+      "category": "L4_WAKEUP",
+      "trm_section": "Table 2-5 / Chapter 7 (SCM Identification: CONTROL_IDCODE 0x4830A204, CONTROL_DIE_ID 0x4830A218)"
     },
     {
       "name": "GPIO1",
@@ -197,6 +225,27 @@
       "size": "0x00001000",
       "category": "L4_PER",
       "trm_section": "Table 2-4 / Chapter 19 (UART3 Controller, IRQ 74)"
+    },
+    {
+      "name": "MCBSP2",
+      "base": "0x49022000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 21 (McBSP2 Controller, IRQ 17)"
+    },
+    {
+      "name": "MCBSP3",
+      "base": "0x49024000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 21 (McBSP3 Controller, IRQ 22)"
+    },
+    {
+      "name": "MCBSP4",
+      "base": "0x49026000",
+      "size": "0x00001000",
+      "category": "L4_PER",
+      "trm_section": "Table 2-4 / Chapter 21 (McBSP4 Controller, IRQ 23)"
     },
     {
       "name": "GPTIMER2",

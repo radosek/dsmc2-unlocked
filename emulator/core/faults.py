@@ -107,6 +107,89 @@ class HardwareFaultInjector:
                 "details": "Watchdog reset triggered: CPU registers reset to boot vector 0x80829F2C."
             }
 
+        elif norm_type in ("UCD_UV_FAULT",):
+            board = str(kwargs.get("board", "isp")).lower()
+            page = int(kwargs.get("page", 0))
+            drop_volts = float(kwargs.get("drop_volts", 0.2))
+            ucd_map = {
+                "iob": getattr(self.camera, "ucd_iob", None),
+                "isp": getattr(self.camera, "ucd_isp", None),
+                "sensor": getattr(self.camera, "ucd_sensor", None),
+            }
+            seq = ucd_map.get(board)
+            if seq is None:
+                return {"fault": norm_type, "status": "error", "message": f"Unknown UCD board '{board}'"}
+            seq.inject_uv_fault(page=page, drop_volts=drop_volts)
+            if hasattr(self.camera, "log_system"):
+                self.camera.log_system(f"[FAULT] Injected UCD UV_FAULT on {board} page {page} (-{drop_volts:.3f}V).")
+            return {
+                "fault": "UCD_UV_FAULT",
+                "status": "injected",
+                "details": f"Under-voltage fault latched on {board.upper()} PMBus page {page}.",
+            }
+
+        elif norm_type in ("E49_ISP_POWER_FAULT",):
+            i2c2 = self.camera.i2c.get(2)
+            if i2c2:
+                i2c2.slaves.pop(0x70, None)
+                i2c2.slaves.pop(0x6C, None)
+            if hasattr(self.camera, "log_system"):
+                self.camera.log_system("[FAULT] Injected E49 ISP power fault: I2C2 0x70 (UCD9090) & 0x6C (Si5346) offline.")
+            return {
+                "fault": "E49_ISP_POWER_FAULT",
+                "status": "injected",
+                "details": "ISP power sequencer (0x70) and Si5346 clock synth (0x6C) removed from I2C2.",
+            }
+
+        elif norm_type in ("E49_ISP_POWER_RESTORE",):
+            i2c2 = self.camera.i2c.get(2)
+            if i2c2:
+                if getattr(self.camera, "ucd_isp", None) is not None:
+                    i2c2.attach_slave(self.camera.ucd_isp)
+                if getattr(self.camera, "si5346", None) is not None:
+                    i2c2.attach_slave(self.camera.si5346)
+            if hasattr(self.camera, "log_system"):
+                self.camera.log_system("[FAULT] Restored E49 ISP power domain: I2C2 0x70 & 0x6C online.")
+            return {
+                "fault": "E49_ISP_POWER_RESTORE",
+                "status": "injected",
+                "details": "ISP power sequencer (0x70) and Si5346 (0x6C) restored on I2C2.",
+            }
+
+        elif norm_type in ("ONEWIRE_BUS_FAULT",):
+            if hasattr(self.camera, "hdq") and self.camera.hdq:
+                self.camera.hdq.bus_fault = bool(kwargs.get("enable", True))
+            if hasattr(self.camera, "log_system"):
+                self.camera.log_system("[FAULT] Injected HDQ / 1-Wire bus fault (no presence detect).")
+            return {
+                "fault": "ONEWIRE_BUS_FAULT",
+                "status": "injected",
+                "details": "HDQ 1-Wire presence detect disabled (simulating bus short/open).",
+            }
+
+        elif norm_type in ("ONEWIRE_BOARD_MISMATCH",):
+            board = str(kwargs.get("board", "ISP")).upper()
+            bad_serial = str(kwargs.get("serial", "BAD-SERIAL-9999"))
+            ok = hasattr(self.camera, "hdq") and self.camera.hdq.corrupt_board_serial(board, bad_serial)
+            if hasattr(self.camera, "log_system"):
+                self.camera.log_system(f"[FAULT] Injected 1-Wire board serial mismatch on {board} -> {bad_serial} (0x03).")
+            return {
+                "fault": "ONEWIRE_BOARD_MISMATCH",
+                "status": "injected" if ok else "error",
+                "details": f"{board} 1-Wire EEPROM serial overwritten without re-signing.",
+            }
+
+        elif norm_type in ("ONEWIRE_BOARD_MISSING",):
+            board = str(kwargs.get("board", "SENSOR")).upper()
+            ok = hasattr(self.camera, "hdq") and self.camera.hdq.remove_board(board)
+            if hasattr(self.camera, "log_system"):
+                self.camera.log_system(f"[FAULT] Removed {board} from 1-Wire bus (0x04 / missing board).")
+            return {
+                "fault": "ONEWIRE_BOARD_MISSING",
+                "status": "injected" if ok else "error",
+                "details": f"{board} removed from HDQ 1-Wire board enumeration.",
+            }
+
         else:
             # Fall back to camera.inject_fault if supported
             try:
