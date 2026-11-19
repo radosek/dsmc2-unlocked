@@ -43,6 +43,40 @@ class RedUiEngine:
 
     MENU_TABS = ["SETTINGS", "MEDIA", "AUDIO", "OVERLAYS", "LOOK", "ABOUT"]
 
+    # Hardware limitations and requirements table for virtual brain emulation
+    # Explicitly details why an option cannot function due to running in software emulation rather than physical hardware.
+    HARDWARE_LIMITATIONS: Dict[str, str] = {
+        "Digitizer Test": "Feature unavailable on virtual brain: Requires physical I2C maXTouch digitizer hardware calibration test bench rather than software emulation.",
+        "Touch Calibration": "Feature unavailable on virtual brain: Requires physical touchscreen resistive/capacitive sensor calibration rig rather than software emulation.",
+        "Touchscreen Locked": "Feature disabled on virtual brain: Physical touchscreen digitizer lockout is disabled to permit continuous browser and developer interaction.",
+        "Recalibrate Touch Digitizer": "Feature unavailable on virtual brain: Requires physical analog front-end digitizer calibration hardware rather than software emulation.",
+        "Genlock Offset": "Feature unavailable on virtual brain: Requires physical SMPTE LTC/Genlock master clock signal wired to camera BNC sync pins rather than software emulation.",
+        "Sync Phase": "Feature unavailable on virtual brain: Requires external hardware Genlock master clock generator connected to camera SYNC pins rather than software emulation.",
+        "Phantom +48V ON": "Feature unavailable on virtual brain: Requires physical analog XLR audio preamp hardware with 48V power step-up rather than software emulation.",
+        "Aux 12V DC Out": "Feature unavailable on virtual brain: Requires physical 12V AUX DC LEMO power rail monitoring hardware rather than software emulation.",
+        "RS 24V Run/Stop Out": "Feature unavailable on virtual brain: Requires physical 24V RS LEMO connector hardware rather than software emulation.",
+        "USB 5V Power ON": "Feature unavailable on virtual brain: Requires physical USB host VBUS power distribution hardware rather than software emulation.",
+        "RED Wireless Motor Driver": "Feature unavailable on virtual brain: Requires physical RED W.M.D. RF wireless transceiver hardware (2.4 GHz) rather than software emulation.",
+        "Channel 1 (2.4 GHz)": "Feature unavailable on virtual brain: Requires physical 2.4 GHz RF wireless motor driver hardware rather than software emulation.",
+        "Set Focus In/Out Stops": "Feature unavailable on virtual brain: Requires physical mechanical lens motor with optical encoder feedback rather than software emulation.",
+        "Set Aperture Motor Range": "Feature unavailable on virtual brain: Requires physical lens iris motor with potentiometer feedback rather than software emulation.",
+        "Set Zoom Motor Range": "Feature unavailable on virtual brain: Requires physical zoom motor servo unit rather than software emulation.",
+        "Save Reticle": "Feature unavailable on virtual brain: Custom user reticle persistence requires external user calibration file staged on media rather than software emulation.",
+        "Load Reticle": "Feature unavailable on virtual brain: Custom user reticle loading requires external user reticle bitmap (.ret) staged on flash rather than software emulation.",
+        "Save Overlays to RED MINI-MAG": "Feature unavailable on virtual brain: Overlay profile export requires external user profile slot on media rather than software emulation.",
+        "Load Overlays from Media": "Feature unavailable on virtual brain: Overlay profile import requires custom .ovl profile present on media rather than software emulation.",
+        "Import CDL": "Feature unavailable on virtual brain: Requires external .cdl / .edl file placed on RED MINI-MAG media rather than software emulation.",
+        "Export CDL": "Feature unavailable on virtual brain: Requires writable RED MINI-MAG media partition with CDL folder rather than software emulation.",
+        "Import 3D LUT (.cube)": "Feature unavailable on virtual brain: Requires external 33x33x33 .cube LUT file staged on RED MINI-MAG rather than software emulation.",
+        "Key Lockout Enabled": "Feature disabled on virtual brain: Physical tactile key lockout is disabled in emulation to allow web tactile button input.",
+        "Key Lockout Disabled": "Feature disabled on virtual brain: Physical tactile key lockout is disabled in emulation to allow web tactile button input.",
+        "Save User Preset to Memory": "Feature unavailable on virtual brain: User preset saving to EEPROM requires formatted user preset partition rather than software emulation.",
+        "Load User Preset": "Feature unavailable on virtual brain: User preset loading requires saved user preset in internal EEPROM rather than software emulation.",
+        "Export Preset to MINI-MAG": "Feature unavailable on virtual brain: Exporting preset requires valid custom user preset in memory rather than software emulation.",
+        "Load Key Profile": "Feature unavailable on virtual brain: Key profile loading requires custom .key map file on media rather than software emulation.",
+        "Save Key Profile": "Feature unavailable on virtual brain: Key profile export requires custom key profile slot on media rather than software emulation.",
+    }
+
     # Official DSMC2 Master Menu Hierarchy
     DSMC2_MENU_TREE: Dict[str, Any] = {
         "IMAGE": {
@@ -338,8 +372,21 @@ class RedUiEngine:
         self.is_log_view_on: bool = False
         self.is_horizon_on: bool = False
         self.is_false_color_dropdown_open: bool = False
-        self.overlay_mode: str = "Standard" # Standard, Overview, Guides, None
-        self.guide_mode: str = "16:9"       # 16:9, 2.39:1, 1.85:1, Off
+        # Overlay & Guide States
+        self.overlay_mode: str = "Standard" # Standard, Overview, Guides, Clean
+        self.guide_mode: str = "16:9"       # 16:9, 2.39:1, 1.85:1, 4:3, Off
+        self.action_guide_on: bool = False
+        self.title_guide_on: bool = False
+        self.guide_color: Tuple[int, int, int] = (255, 255, 255) # White, Red, Yellow
+        self.guide_shading_pct: int = 0     # 0, 50, 100
+        self.show_camera_status: bool = True
+        self.show_temperatures: bool = True
+        self.show_fan_rpm: bool = False
+        self.show_lens_status: bool = True
+        self.show_focus_distance: bool = True
+
+        # Non-functional / Hardware Alert Modal State
+        self.active_alert: Optional[Dict[str, str]] = None  # {"title": str, "message": str, "option": str}
 
         # Touch and Feedback State
         self.last_touch_pos: Optional[Tuple[int, int]] = None
@@ -475,6 +522,10 @@ class RedUiEngine:
 
         now = time.time()
         self._last_action_time = now
+
+        # 0. If Alert Popup is active, handle touch dismiss
+        if self.active_alert:
+            return self._handle_alert_touch(x, y)
 
         # 1. If DSMC2 Main Menu is open, consume ALL touches to prevent click-through
         if self.is_menu_open:
@@ -752,6 +803,23 @@ class RedUiEngine:
                 return i
         return None
 
+    def show_alert(self, title: str, message: str, option_name: str = ""):
+        """Display an on-screen modal alert explaining non-functional or hardware-restricted features."""
+        self.active_alert = {
+            "title": title,
+            "message": message,
+            "option": option_name
+        }
+        self.camera.log_system(f"[UI ALERT] {title}: {message}")
+
+    def _handle_alert_touch(self, x: int, y: int) -> bool:
+        """Dismiss alert on OK button or tap outside."""
+        # Alert box bounds: cx=512, cy=288, w=540, h=220 -> x: 242..782, y: 178..398
+        # OK Button: x: 452..572, y: 345..385
+        self.active_alert = None
+        self.camera.log_system("[UI] Alert dismissed")
+        return True
+
     def _handle_menu_touch(self, x: int, y: int) -> bool:
         """Handle touches inside the full authentic DSMC2 system menu."""
         # Top breadcrumb bar buttons
@@ -896,6 +964,17 @@ class RedUiEngine:
             self.camera.log_system(f"[UI] Navigated to Menu: {' > '.join(self.menu_path)}")
             return
 
+        # Check if this option requires physical hardware not available on the emulator
+        full_opt_path = " > ".join(self.menu_path + [item])
+        for pattern, reason in self.HARDWARE_LIMITATIONS.items():
+            if pattern.lower() in item.lower() or pattern.lower() in full_opt_path.lower():
+                self.show_alert(
+                    title="EMULATOR LIMITATION: PHYSICAL HARDWARE REQUIRED",
+                    message=f"'{item}' cannot function in the virtual brain emulator.\n{reason}",
+                    option_name=item
+                )
+                return
+
         rcp = self.camera.rcp
         last_cat = self.menu_path[-1]
 
@@ -951,9 +1030,40 @@ class RedUiEngine:
             self.active_lut = item
             self.camera.log_system(f"[UI] 3D LUT changed to: {item}")
 
-        elif last_cat in ("GUIDES", "Frame Guide") or "Action Guide" in last_cat or "Title Guide" in last_cat:
-            self.guide_mode = item
-            self.camera.log_system(f"[UI] Frame Guides set to {item}")
+        elif last_cat in ("GUIDES", "Frame Guide") or "Action Guide" in last_cat or "Title Guide" in last_cat or "General" in last_cat:
+            if "16:9" in item:
+                self.guide_mode = "16:9"
+            elif "2.39:1" in item:
+                self.guide_mode = "2.39:1"
+            elif "1.85:1" in item:
+                self.guide_mode = "1.85:1"
+            elif "4:3" in item:
+                self.guide_mode = "4:3"
+            elif "Guides OFF" in item:
+                self.guide_mode = "Off"
+
+            if "Action Safe 90% ON" in item:
+                self.action_guide_on = True
+            elif "Action Safe OFF" in item:
+                self.action_guide_on = False
+
+            if "Title Safe 80% ON" in item:
+                self.title_guide_on = True
+            elif "Title Safe OFF" in item:
+                self.title_guide_on = False
+
+            if "Guide Line: Red" in item:
+                self.guide_color = (255, 40, 40)
+            elif "Guide Line: White" in item:
+                self.guide_color = (255, 255, 255)
+            elif "Guide Line: Yellow" in item:
+                self.guide_color = (255, 220, 0)
+            elif "Guide Shading 50%" in item:
+                self.guide_shading_pct = 50
+            elif "Guide Shading 100%" in item:
+                self.guide_shading_pct = 100
+
+            self.camera.log_system(f"[UI] Frame Guides updated: {item} (Mode: {self.guide_mode}, Action: {self.action_guide_on}, Title: {self.title_guide_on})")
 
         elif last_cat == "TOOLS":
             if "False Color" in item:
@@ -963,9 +1073,35 @@ class RedUiEngine:
             elif "Zebras" in item:
                 self.toggle_zebras()
             elif "Horizon" in item:
-                self.camera.log_system("[UI] Horizon Level overlay toggled")
+                self.is_horizon_on = not getattr(self, "is_horizon_on", False)
+                self.camera.log_system(f"[UI] Horizon Level overlay {'ENABLED' if self.is_horizon_on else 'DISABLED'}")
             elif "RAW" in item:
-                self.camera.log_system("[UI] RAW exposure view toggled")
+                self.is_raw_view_on = not getattr(self, "is_raw_view_on", False)
+                self.camera.log_system(f"[UI] RAW exposure view {'ENABLED' if self.is_raw_view_on else 'DISABLED'}")
+
+        elif last_cat == "STATUS":
+            if "Show Core Camera Status" in item:
+                self.show_camera_status = True
+            elif "Show Temperatures" in item:
+                self.show_temperatures = True
+            elif "Show Fan RPM" in item:
+                self.show_fan_rpm = True
+            elif "Show Lens Focal & Aperture" in item:
+                self.show_lens_status = True
+            elif "Show Focus Distance" in item:
+                self.show_focus_distance = True
+            elif "Lens Status OFF" in item:
+                self.show_lens_status = False
+            self.camera.log_system(f"[OVERLAYS] Status HUD configuration updated: {item}")
+
+        elif last_cat == "Video" and ("Clean Video" in item or "Display All" in item or "Guides Only" in item):
+            if "Clean Video" in item:
+                self.overlay_mode = "Clean"
+            elif "Display All" in item:
+                self.overlay_mode = "Standard"
+            elif "Guides Only" in item:
+                self.overlay_mode = "Guides"
+            self.camera.log_system(f"[MONITORING] Video overlay feed set to: {self.overlay_mode}")
 
         elif "Saturation" in item or "Contrast" in item or "Brightness" in item or "Exposure Comp" in item:
             self.camera.log_system(f"[LOOK] Color parameter updated: {item}")
@@ -1247,6 +1383,10 @@ class RedUiEngine:
         # 9. Active Tool Badges (Magnify / False Color / Zebras)
         self._draw_tool_badges(draw)
 
+        # 10. Alert Popup Modal (if non-functional / hardware limit triggered)
+        if self.active_alert:
+            self._draw_alert_modal(draw)
+
         return img
 
     def _apply_false_color(self, img: Image.Image) -> Image.Image:
@@ -1264,23 +1404,108 @@ class RedUiEngine:
         return res
 
     def _draw_guides(self, draw: ImageDraw.ImageDraw):
-        """Draw authentic cinema frame lines."""
-        if self.guide_mode == "2.39:1":
-            # 2.39:1 aspect ratio inside 16:9
-            guide_h = int(self.WIDTH / 2.39)
-            top_y = (self.HEIGHT - guide_h) // 2
-            bot_y = top_y + guide_h
-            draw.line([(0, top_y), (self.WIDTH, top_y)], fill=(200, 200, 200), width=1)
-            draw.line([(0, bot_y), (self.WIDTH, bot_y)], fill=(200, 200, 200), width=1)
-            # Corner ticks
-            draw.line([(100, top_y - 8), (100, top_y + 8)], fill=(255, 255, 255), width=1)
-            draw.line([(self.WIDTH - 100, top_y - 8), (self.WIDTH - 100, top_y + 8)], fill=(255, 255, 255), width=1)
-        elif self.guide_mode == "1.85:1":
-            guide_h = int(self.WIDTH / 1.85)
-            top_y = (self.HEIGHT - guide_h) // 2
-            bot_y = top_y + guide_h
-            draw.line([(0, top_y), (self.WIDTH, top_y)], fill=(180, 180, 180), width=1)
-            draw.line([(0, bot_y), (self.WIDTH, bot_y)], fill=(180, 180, 180), width=1)
+        """Draw authentic cinema frame lines, action safe, title safe, and guide shading."""
+        # Check overlay mode: if Clean, do not draw guides
+        if self.overlay_mode == "Clean":
+            return
+
+        col = getattr(self, "guide_color", (255, 255, 255))
+        shading = getattr(self, "guide_shading_pct", 0)
+
+        # 1. Main Aspect Ratio Frame Guide
+        gmode = getattr(self, "guide_mode", "16:9")
+        if gmode != "Off":
+            if gmode == "2.39:1":
+                guide_h = int(self.WIDTH / 2.39)
+                top_y = (self.HEIGHT - guide_h) // 2
+                bot_y = top_y + guide_h
+                left_x, right_x = 0, self.WIDTH
+
+                # Letterbox shading if enabled
+                if shading > 0:
+                    shade_fill = (0, 0, 0, 128) if shading == 50 else (0, 0, 0, 240)
+                    draw.rectangle([(0, 0), (self.WIDTH, top_y)], fill=(0, 0, 0))
+                    draw.rectangle([(0, bot_y), (self.WIDTH, self.HEIGHT)], fill=(0, 0, 0))
+
+                draw.line([(0, top_y), (self.WIDTH, top_y)], fill=col, width=1)
+                draw.line([(0, bot_y), (self.WIDTH, bot_y)], fill=col, width=1)
+                # Corner ticks
+                draw.line([(80, top_y - 8), (80, top_y + 8)], fill=col, width=1)
+                draw.line([(self.WIDTH - 80, top_y - 8), (self.WIDTH - 80, top_y + 8)], fill=col, width=1)
+
+            elif gmode == "1.85:1":
+                guide_h = int(self.WIDTH / 1.85)
+                top_y = (self.HEIGHT - guide_h) // 2
+                bot_y = top_y + guide_h
+
+                if shading > 0:
+                    draw.rectangle([(0, 0), (self.WIDTH, top_y)], fill=(0, 0, 0))
+                    draw.rectangle([(0, bot_y), (self.WIDTH, self.HEIGHT)], fill=(0, 0, 0))
+
+                draw.line([(0, top_y), (self.WIDTH, top_y)], fill=col, width=1)
+                draw.line([(0, bot_y), (self.WIDTH, bot_y)], fill=col, width=1)
+                draw.line([(80, top_y - 6), (80, top_y + 6)], fill=col, width=1)
+                draw.line([(self.WIDTH - 80, top_y - 6), (self.WIDTH - 80, top_y + 6)], fill=col, width=1)
+
+            elif gmode == "4:3":
+                guide_w = int(self.HEIGHT * (4.0 / 3.0))
+                left_x = (self.WIDTH - guide_w) // 2
+                right_x = left_x + guide_w
+
+                # Pillarbox shading if enabled
+                if shading > 0:
+                    draw.rectangle([(0, 0), (left_x, self.HEIGHT)], fill=(0, 0, 0))
+                    draw.rectangle([(right_x, 0), (self.WIDTH, self.HEIGHT)], fill=(0, 0, 0))
+
+                draw.line([(left_x, 0), (left_x, self.HEIGHT)], fill=col, width=1)
+                draw.line([(right_x, 0), (right_x, self.HEIGHT)], fill=col, width=1)
+                draw.line([(left_x - 6, 80), (left_x + 6, 80)], fill=col, width=1)
+                draw.line([(right_x - 6, 80), (right_x + 6, 80)], fill=col, width=1)
+
+            elif gmode == "16:9":
+                # Standard 16:9 border ticks
+                draw.line([(20, 20), (50, 20)], fill=col, width=1)
+                draw.line([(20, 20), (20, 50)], fill=col, width=1)
+                draw.line([(self.WIDTH - 20, 20), (self.WIDTH - 50, 20)], fill=col, width=1)
+                draw.line([(self.WIDTH - 20, 20), (self.WIDTH - 20, 50)], fill=col, width=1)
+                draw.line([(20, self.HEIGHT - 20), (50, self.HEIGHT - 20)], fill=col, width=1)
+                draw.line([(20, self.HEIGHT - 20), (20, self.HEIGHT - 50)], fill=col, width=1)
+                draw.line([(self.WIDTH - 20, self.HEIGHT - 20), (self.WIDTH - 50, self.HEIGHT - 20)], fill=col, width=1)
+                draw.line([(self.WIDTH - 20, self.HEIGHT - 20), (self.WIDTH - 20, self.HEIGHT - 50)], fill=col, width=1)
+
+        # 2. Action Safe 90%
+        if getattr(self, "action_guide_on", False):
+            ax1 = int(self.WIDTH * 0.05)
+            ay1 = int(self.HEIGHT * 0.05)
+            ax2 = int(self.WIDTH * 0.95)
+            ay2 = int(self.HEIGHT * 0.95)
+            draw.rectangle([(ax1, ay1), (ax2, ay2)], outline=(0, 220, 255), width=1)
+            draw.text((ax1 + 6, ay1 + 4), "ACTION 90%", fill=(0, 220, 255), font=FONT_TINY)
+
+        # 3. Title Safe 80%
+        if getattr(self, "title_guide_on", False):
+            tx1 = int(self.WIDTH * 0.10)
+            ty1 = int(self.HEIGHT * 0.10)
+            tx2 = int(self.WIDTH * 0.90)
+            ty2 = int(self.HEIGHT * 0.90)
+            draw.rectangle([(tx1, ty1), (tx2, ty2)], outline=(255, 200, 0), width=1)
+            draw.text((tx1 + 6, ty1 + 4), "TITLE 80%", fill=(255, 200, 0), font=FONT_TINY)
+
+        # 4. Status HUD Overlays inside frame (if enabled)
+        if getattr(self, "show_camera_status", True) and not self.is_menu_open and not self.active_dialog:
+            lm = getattr(self.camera, "lens_mount", None)
+            if getattr(self, "show_lens_status", True) and lm and lm.attached_lens:
+                lens_txt = f"{lm.attached_lens.focal_display}  f/{lm.current_aperture:.1f}"
+                if getattr(self, "show_focus_distance", True):
+                    dist_str = f"{lm.current_focus_distance:.2f}m" if lm.current_focus_distance < 900 else "∞"
+                    lens_txt += f"  Dist: {dist_str}"
+                draw.text((24, 468), lens_txt, fill=(0, 255, 120), font=FONT_SM)
+
+            if getattr(self, "show_temperatures", True):
+                th = getattr(self.camera, "thermal", None)
+                if th:
+                    temp_txt = f"T: {th.sensor_temp_c:.0f}°C / E: {th.brain_temp_c:.0f}°C"
+                    draw.text((self.WIDTH - 150, 468), temp_txt, fill=(180, 180, 180), font=FONT_TINY)
 
     def _draw_tool_badges(self, draw: ImageDraw.ImageDraw):
         """Draw active indicator badges for 1:1 Mag, False Color, or Zebras."""
@@ -1321,6 +1546,42 @@ class RedUiEngine:
             y2 = y1 + block_h - 2
             draw.rectangle([(sx, y1), (sx + 18, y2)], fill=color, outline=(0, 0, 0))
             draw.text((sx + 22, y1 + 2), txt, fill=(240, 240, 240))
+
+    def _draw_alert_modal(self, draw: ImageDraw.ImageDraw):
+        """Draw authentic DSMC2 system warning/alert popup for non-functional/hardware-restricted options."""
+        alert = self.active_alert
+        if not alert:
+            return
+
+        cx, cy = self.WIDTH // 2, self.HEIGHT // 2
+        aw, ah = 540, 220
+        ax1, ay1 = cx - aw // 2, cy - ah // 2
+        ax2, ay2 = cx + aw // 2, cy + ah // 2
+
+        # Dim backdrop
+        draw.rectangle([(0, 0), (self.WIDTH, self.HEIGHT)], fill=(0, 0, 0, 160))
+
+        # Alert Box
+        draw.rectangle([(ax1, ay1), (ax2, ay2)], fill=(20, 20, 20), outline=(220, 40, 40), width=2)
+        # Red Header Strip
+        draw.rectangle([(ax1, ay1), (ax2, ay1 + 36)], fill=(160, 20, 20))
+        draw.text((ax1 + 16, ay1 + 9), f"⚠  {alert['title']}", fill=(255, 255, 255), font=FONT_TITLE)
+
+        # Message Text (Multi-line word wrap)
+        lines = alert["message"].split("\n")
+        my = ay1 + 52
+        for line in lines:
+            draw.text((ax1 + 20, my), line, fill=(230, 230, 230), font=FONT_MED)
+            my += 22
+
+        # Status note
+        draw.text((ax1 + 20, ay2 - 58), "Notice: This virtual brain runs in software emulation, not on physical camera hardware.", fill=(255, 180, 60), font=FONT_TINY)
+
+        # [ OK / DISMISS ] Button
+        bx1, by1 = cx - 50, ay2 - 38
+        bx2, by2 = cx + 50, ay2 - 10
+        draw.rectangle([(bx1, by1), (bx2, by2)], fill=(45, 45, 45), outline=(200, 200, 200), width=1)
+        draw.text((cx - 10, by1 + 6), "OK", fill=(255, 255, 255), font=FONT_BOLD)
 
     def _draw_touch_reticle(self, draw: ImageDraw.ImageDraw, x: int, y: int, alpha: float):
         """Draw high-visibility touch feedback reticle and coordinate readout."""

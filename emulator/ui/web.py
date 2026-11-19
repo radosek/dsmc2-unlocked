@@ -119,9 +119,11 @@ class ScreenCompositor:
             else:
                 img = Image.new("RGB", (self.NATIVE_WIDTH, self.NATIVE_HEIGHT), (15, 15, 15))
 
-            # Draw RED HUD
+            # Draw RED HUD (respecting overlay_mode)
             try:
-                self._draw_hud(img)
+                overlay_mode = getattr(self.redui, "overlay_mode", "Standard")
+                if overlay_mode != "Clean":
+                    self._draw_hud(img)
             except Exception as e:
                 print(f"[Compositor] Error drawing HUD: {e}")
 
