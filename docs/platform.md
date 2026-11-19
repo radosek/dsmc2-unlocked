@@ -44,11 +44,11 @@ Each core loads its own firmware image at boot.
 | Subsystem | Core | Role |
 |---|---|---|
 | ISP (×2) | Tensilica Xtensa | Processes the sensor image (the R3D wavelet path is hardware) |
-| IOB0 | Tensilica Xtensa | Handles SATA, HBA, and HDMI I/O |
+| IOB0 | Tensilica Xtensa | Handles SATA, HBA, and HDMI I/O (two SATA host controllers: HBA0 via the SATA3 FPGA, HBA1 direct) |
 | IOB1 | Tensilica Xtensa | Does sensor dark-level and bad-pixel calibration |
 | proio IOB0 | Tensilica Xtensa | Pro I/O build (data section is a zero-filled stub) |
-| LSB FPGA | Xilinx Kintex-7 | Programmable logic |
-| SATA3 FPGA | FPGA | Bridges the media bus (see the media folder) |
+| LSB FPGA | Xilinx Kintex-7 XC7K325T | Programmable logic; carries the SATA3 media path + a PI2DBS6212 2:1 SATA mux |
+| SATA3 FPGA | on the LSB | Bridges the IOB's SATA up to SATA III; it is HBA0's register path (see the media folder) |
 | DSP | TI TMS320C6x | Brain-module signal processing |
 | WiFi/BT | RSI RS9113 (Redpine) | Wireless |
 

@@ -14,6 +14,14 @@ This folder documents that path in full.
 
 - **The bus is SATA-only** (SATA III, through an on-board SATA3 FPGA). NVMe and
   CFexpress/CF/SD do **not** work. Do not buy them.
+- **Real sustained throughput is ~465 MB/s write, ~520 MB/s read** — not the
+  ~550 MB/s the SATA3 link theoretically allows. The gap is the camera's internal
+  datapath (the SATA controller lives in the IOB coprocessor, reached over the
+  C2C/XAUI fabric), not the drive. A faster SSD does not raise it; it is
+  camera-bound. **There is no way to exceed this** by firmware: the mag is a
+  single SATA3 lane, so anything needing more than ~465 MB/s sustained (e.g. 8K
+  REDCODE at very low compression) cannot hold without dropping frames. See
+  [topology](#sata-topology).
 - A MINI-MAG is a stock **mSATA** SSD in a caddy. The one genuine firmware we
   examined (960 GB V3) uses the Silicon Motion SM2246EN controller. Nothing is
   exotic.
@@ -34,6 +42,31 @@ This folder documents that path in full.
   without a camera-side firmware patch** (`media-any`), because you cannot rewrite
   those words on the drive without reflashing its controller. See
   [authentication.md](authentication.md) and the patch tooling.
+
+## SATA topology
+
+The media path is not a simple SATA controller on the main SoC. The DSMC2 brain
+(TI DM3725 / OMAP3630-class) has **no native SATA**. The SATA controller lives in
+the **IOB coprocessor**, and the brain reaches it over the C2C/XAUI serial fabric.
+
+- The IOB exposes **two SATA host controllers (HBA0 and HBA1)**. Firmware-verified:
+  **HBA0's registers are accessed through the SATA3 FPGA** (an indirect, remapped
+  register path over the IOB fabric), while **HBA1 is direct memory-mapped**. So
+  "HBA0 = the FPGA-bridged SATA3 path, HBA1 = the direct path."
+- The on-board **SATA3 FPGA** is what upgrades the IOB's SATA to SATA III. (The LSB
+  board carries a Xilinx Kintex-7 **XC7K325T** FPGA, confirmed from its bitstream
+  IDCODE; the SATA3 bridge is on that media path.)
+- Between the controller and the single media b2b connector sits a **Pericom/Diodes
+  PI2DBS6212 2:1 SATA mux/demux** (part marked on the LSB). It is a 6.5 Gbps SATA3
+  switch with a GPIO SEL pin — it routes **one** SATA lane to the media slot. Which
+  of its two legs feeds which source is a board-routing detail; the firmware only
+  ever attaches one active media device at a time. **This means the camera cannot
+  write two drives simultaneously and cannot stripe for speed** — there is one lane.
+- The stock firmware constructs exactly **one active media device**. The second HBA
+  and the extra media slots named in firmware (`side`/`rear`) are provisioning for
+  other RED bodies in the shared codebase; a plain brain mounts one mag.
+
+Net: one SATA3 lane, ~465 MB/s sustained, no multi-drive and no >465 MB/s path.
 
 ## Documents
 
