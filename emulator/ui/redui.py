@@ -813,11 +813,19 @@ class RedUiEngine:
         self.camera.log_system(f"[UI ALERT] {title}: {message}")
 
     def _handle_alert_touch(self, x: int, y: int) -> bool:
-        """Dismiss alert on OK button or tap outside."""
-        # Alert box bounds: cx=512, cy=288, w=540, h=220 -> x: 242..782, y: 178..398
-        # OK Button: x: 452..572, y: 345..385
-        self.active_alert = None
-        self.camera.log_system("[UI] Alert dismissed")
+        """Dismiss alert on OK button press or tap outside the modal box."""
+        cx, cy = self.WIDTH // 2, self.HEIGHT // 2
+        aw, ah = 540, 220
+        ax1, ay1 = cx - aw // 2, cy - ah // 2   # (242, 178)
+        ax2, ay2 = cx + aw // 2, cy + ah // 2   # (782, 398)
+        bx1, by1 = cx - 50, ay2 - 38            # (462, 360)
+        bx2, by2 = cx + 50, ay2 - 10            # (562, 388)
+
+        in_ok_btn = (bx1 <= x <= bx2 and by1 <= y <= by2)
+        in_modal = (ax1 <= x <= ax2 and ay1 <= y <= ay2)
+        if in_ok_btn or not in_modal:
+            self.active_alert = None
+            self.camera.log_system("[UI] Alert dismissed")
         return True
 
     def _handle_menu_touch(self, x: int, y: int) -> bool:
@@ -1336,7 +1344,7 @@ class RedUiEngine:
         """
         Compose HUD, exposure tools, dialogs, menu, and touch reticle onto base frame.
         """
-        img = base_image.copy()
+        img = base_image.convert("RGB") if base_image.mode != "RGB" else base_image.copy()
 
         # 1. Apply 1:1 Magnify crop if enabled
         if self.is_magnify_on:
@@ -1353,7 +1361,7 @@ class RedUiEngine:
         if self.is_zebras_on:
             img = self._apply_zebras(img)
 
-        draw = ImageDraw.Draw(img)
+        draw = ImageDraw.Draw(img, "RGBA")
 
         # 4. Draw Frame Guides
         self._draw_guides(draw)
@@ -1403,14 +1411,25 @@ class RedUiEngine:
         res.paste(self._zebra_pattern, (0, 0), mask)
         return res
 
+    @staticmethod
+    def _ensure_rgba_draw(draw: ImageDraw.ImageDraw) -> ImageDraw.ImageDraw:
+        """Return an RGBA-mode ImageDraw capable of alpha-compositing onto an RGB image."""
+        if getattr(draw, "mode", None) == "RGBA":
+            return draw
+        if hasattr(draw, "_image"):
+            return ImageDraw.Draw(draw._image, "RGBA")
+        return draw
+
     def _draw_guides(self, draw: ImageDraw.ImageDraw):
         """Draw authentic cinema frame lines, action safe, title safe, and guide shading."""
         # Check overlay mode: if Clean, do not draw guides
         if self.overlay_mode == "Clean":
             return
 
+        rgba_draw = self._ensure_rgba_draw(draw)
         col = getattr(self, "guide_color", (255, 255, 255))
         shading = getattr(self, "guide_shading_pct", 0)
+        shade_fill = ((0, 0, 0, 128) if shading == 50 else (0, 0, 0, 240)) if shading > 0 else None
 
         # 1. Main Aspect Ratio Frame Guide
         gmode = getattr(self, "guide_mode", "16:9")
@@ -1419,13 +1438,11 @@ class RedUiEngine:
                 guide_h = int(self.WIDTH / 2.39)
                 top_y = (self.HEIGHT - guide_h) // 2
                 bot_y = top_y + guide_h
-                left_x, right_x = 0, self.WIDTH
 
                 # Letterbox shading if enabled
-                if shading > 0:
-                    shade_fill = (0, 0, 0, 128) if shading == 50 else (0, 0, 0, 240)
-                    draw.rectangle([(0, 0), (self.WIDTH, top_y)], fill=(0, 0, 0))
-                    draw.rectangle([(0, bot_y), (self.WIDTH, self.HEIGHT)], fill=(0, 0, 0))
+                if shade_fill is not None:
+                    rgba_draw.rectangle([(0, 0), (self.WIDTH, top_y)], fill=shade_fill)
+                    rgba_draw.rectangle([(0, bot_y), (self.WIDTH, self.HEIGHT)], fill=shade_fill)
 
                 draw.line([(0, top_y), (self.WIDTH, top_y)], fill=col, width=1)
                 draw.line([(0, bot_y), (self.WIDTH, bot_y)], fill=col, width=1)
@@ -1438,9 +1455,9 @@ class RedUiEngine:
                 top_y = (self.HEIGHT - guide_h) // 2
                 bot_y = top_y + guide_h
 
-                if shading > 0:
-                    draw.rectangle([(0, 0), (self.WIDTH, top_y)], fill=(0, 0, 0))
-                    draw.rectangle([(0, bot_y), (self.WIDTH, self.HEIGHT)], fill=(0, 0, 0))
+                if shade_fill is not None:
+                    rgba_draw.rectangle([(0, 0), (self.WIDTH, top_y)], fill=shade_fill)
+                    rgba_draw.rectangle([(0, bot_y), (self.WIDTH, self.HEIGHT)], fill=shade_fill)
 
                 draw.line([(0, top_y), (self.WIDTH, top_y)], fill=col, width=1)
                 draw.line([(0, bot_y), (self.WIDTH, bot_y)], fill=col, width=1)
@@ -1453,9 +1470,9 @@ class RedUiEngine:
                 right_x = left_x + guide_w
 
                 # Pillarbox shading if enabled
-                if shading > 0:
-                    draw.rectangle([(0, 0), (left_x, self.HEIGHT)], fill=(0, 0, 0))
-                    draw.rectangle([(right_x, 0), (self.WIDTH, self.HEIGHT)], fill=(0, 0, 0))
+                if shade_fill is not None:
+                    rgba_draw.rectangle([(0, 0), (left_x, self.HEIGHT)], fill=shade_fill)
+                    rgba_draw.rectangle([(right_x, 0), (self.WIDTH, self.HEIGHT)], fill=shade_fill)
 
                 draw.line([(left_x, 0), (left_x, self.HEIGHT)], fill=col, width=1)
                 draw.line([(right_x, 0), (right_x, self.HEIGHT)], fill=col, width=1)
@@ -1558,8 +1575,9 @@ class RedUiEngine:
         ax1, ay1 = cx - aw // 2, cy - ah // 2
         ax2, ay2 = cx + aw // 2, cy + ah // 2
 
-        # Dim backdrop
-        draw.rectangle([(0, 0), (self.WIDTH, self.HEIGHT)], fill=(0, 0, 0, 160))
+        # Dim backdrop using RGBA compositing so video remains visible beneath the modal
+        rgba_draw = self._ensure_rgba_draw(draw)
+        rgba_draw.rectangle([(0, 0), (self.WIDTH, self.HEIGHT)], fill=(0, 0, 0, 160))
 
         # Alert Box
         draw.rectangle([(ax1, ay1), (ax2, ay2)], fill=(20, 20, 20), outline=(220, 40, 40), width=2)

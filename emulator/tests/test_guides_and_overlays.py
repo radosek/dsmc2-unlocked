@@ -79,9 +79,19 @@ def test_action_and_title_safe_guides(redui):
     redui._handle_menu_item_selected("Guide Shading 50%")
     assert redui.guide_shading_pct == 50
 
-    img = Image.new("RGB", (1024, 576), (30, 30, 30))
-    rendered = redui.render(img)
-    assert rendered is not None
+    redui.guide_mode = "2.39:1"
+    img = Image.new("RGB", (1024, 576), (200, 100, 50))
+    rendered_50 = redui.render(img)
+    assert rendered_50 is not None
+    px_50 = rendered_50.getpixel((512, 10))
+    assert 0 < px_50[0] < 200
+
+    redui.menu_path = ["Menu", "OVERLAYS", "GUIDES", "General"]
+    redui._handle_menu_item_selected("Guide Shading 100%")
+    assert redui.guide_shading_pct == 100
+    rendered_100 = redui.render(img)
+    px_100 = rendered_100.getpixel((512, 10))
+    assert px_100[0] < px_50[0]
 
 
 def test_overlay_mode_clean_and_standard(redui):
@@ -104,12 +114,18 @@ def test_hardware_limitation_alert_popup(redui):
     assert "software emulation" in redui.active_alert["message"]
     assert "maXTouch digitizer" in redui.active_alert["message"]
 
-    # Verify rendering alert modal
-    img = Image.new("RGB", (1024, 576), (15, 15, 15))
+    # Verify rendering alert modal over bright video dims backdrop instead of solid black
+    img = Image.new("RGB", (1024, 576), (200, 100, 50))
     rendered = redui.render(img)
     assert rendered is not None
+    backdrop_px = rendered.getpixel((100, 100))
+    assert 0 < backdrop_px[0] < 200
 
-    # Verify touch dismisses alert
+    # Tap inside modal body away from OK button keeps alert open
+    redui.handle_touch(512, 250, True, "down")
+    assert redui.active_alert is not None
+
+    # Tap OK button dismisses alert
     redui.handle_touch(512, 360, True, "down")
     assert redui.active_alert is None
 
