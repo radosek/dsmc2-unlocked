@@ -23,12 +23,12 @@ This matrix lists the fidelity level of each component in the emulator.
 | **OMAP3 sDMA Controller** | **DEVICE-ACCURATE MODEL** | DEVICE-ACCURATE MODEL | Implements 32 DMA channels at `0x48056000`, OCP soft-reset (`DMA4_SYSSTATUS`), channel `CCR`/`CSR` registers, and IRQ 15 routing. |
 | **OMAP3 McSPI (1..4)** | **DEVICE-ACCURATE MODEL** | DEVICE-ACCURATE MODEL | Implements 4 SPI controllers (`0x48098000`, `0x4809A000`, `0x480B8000`, `0x480BA000`) with IRQs 65, 66, 91, and 48, FIFO loopback, and status clearing. |
 | **OMAP3 McBSP (2..5)** | **DEVICE-ACCURATE MODEL** | DEVICE-ACCURATE MODEL | Implements McBSP 2..5 (`0x49022000`, `0x49024000`, `0x49026000`, `0x48096000`) with IRQs 17, 22, 23, and 27, `DRR`/`DXR`, `SPCR2`/`SPCR1` (`DLB` loopback), and `XCERA`. |
-| **OMAP3 HDQ / 1-Wire** | **DEVICE-ACCURATE MODEL** | DEVICE-ACCURATE MODEL | Implements HDQ/1-Wire (`0x480B2000`, IRQ 58) with Maxim Reset/Presence, Search ROM (`0xF0`), Match ROM (`0x55`), Skip ROM (`0xCC`), Read Memory (`0xF0`), CRC-8, MD5 salt `27a8124fb3ea`, and 5 synthetic DSMC2 boards. |
-| **OMAP3 Camera ISP & SCM_ID** | **DEVICE-ACCURATE MODEL** | DEVICE-ACCURATE MODEL | Implements `CAM_ISP` (`0x480BC000`, 16 KB, `ISP_REVISION`/`SYSCONFIG`/`SYSSTATUS`/`IRQ0*`, `CCDC_PCR`/`SDR_ADDR`) and `SCM_ID` (`0x4830A000`, `IDCODE=0x1B89102F`, synthetic 128-bit `DIE_ID`). |
+| **OMAP3 HDQ / 1-Wire** | **DEVICE-ACCURATE MODEL** | DEVICE-ACCURATE MODEL | Implements HDQ/1-Wire (`0x480B2000`, IRQ 58) with Maxim Reset/Presence, Search ROM (`0xF0`), Match ROM (`0x55`), Skip ROM (`0xCC`), Read Memory (`0xF0`), CRC-8, MD5 salt `27a8124fb3ea`, `onewire_compute_signature` record offsets, and 5 synthetic DSMC2 boards (LSB `131-0727`, RSB `131-0726`). |
+| **OMAP3 Camera ISP & SCM_ID** | **DEVICE-ACCURATE MODEL** | DEVICE-ACCURATE MODEL | Implements `CAM_ISP` (`0x480BC000`, 16 KB, `ISP_REVISION`/`SYSCONFIG`/`SYSSTATUS`/`IRQ0*`, `CCDC_PCR`/`SDR_ADDR`) and `SCM_ID` (`0x4830A000`, `IDCODE=0x1B89102F` ES1.1, synthetic 128-bit `DIE_ID`). |
 | **OMAP3 GPTimers (1..11)** | **DEVICE-ACCURATE MODEL** | DEVICE-ACCURATE MODEL | Implements the OMAP3 TRM register map across timers 1..11 (`TISR` `0x18`, `TIER` `0x1C`, `TCLR` `0x24`, `TCRR` `0x28`, `TLDR` `0x2C`). Timer 2 (IRQ 38) drives the ThreadX tick. |
 | **OMAP3 UARTs (1, 2, 3, 4)** | **DEVICE-ACCURATE MODEL** | DEVICE-ACCURATE MODEL | Implements 16550 UARTs with TX line buffers, RX queues, `LSR`/`SSR` flags, UART3 RCP, and UART4 system logs (`0x49042000`). |
 | **OMAP3 I2C Controllers (1, 2, 3)** | **DEVICE-ACCURATE MODEL** | DEVICE-ACCURATE MODEL | Implements master TX/RX, `XRDY`/`RRDY`/`ARDY` interrupts, FIFO threshold status, TWL4030 protect-key unlock sequences, and IRQ 61 dispatch. |
-| **DSMC2 I2C Sequencers & Chips** | **DEVICE-ACCURATE MODEL** | DEVICE-ACCURATE MODEL | Implements PMBus `TI UCD9090` (`0x7C` on I2C1, `0x70` on I2C2/I2C3), `TI UCD90160` (`0x65` on I2C2/I2C3) with page limits & `MFR_GPO_*`, `Si5346` (`0x6C`), `DAC7578` (`0x49`/`0x4B`), and `FocalTech FT5x06` (`0x3E`). |
+| **DSMC2 I2C Sequencers & Chips** | **DEVICE-ACCURATE MODEL** | DEVICE-ACCURATE MODEL | Implements PMBus `TI UCD9090` (`0x70` live bus 2 / I2C3 & ISP I2C2, `0x7C` index alias on I2C1), `TI UCD90160` (`0x65` on I2C2/I2C3) with sample rail tables, page limits, and `MFR_GPO_*`; `Si5346` (`0x6C`), `DAC7578` (`0x49`/`0x4B`), and `FocalTech FT5x06` (`0x3E`, synthetic IDs). |
 | **Atmel maXTouch Multi-Touch** | **DEVICE-ACCURATE MODEL** | DEVICE-ACCURATE MODEL | Implements I2C3 device `0x4B` with 7 objects (`T5`, `T6`, `T7`, `T8`, `T9`, `T15`, `T40`), 1024x576 touch coordinates, and the `T5` message queue. |
 | **EDID EEPROM (RED Touch 7.0)** | **DEVICE-ACCURATE MODEL** | DEVICE-ACCURATE MODEL | Implements a 24C02 EEPROM on I2C3 `0x50` with a 128-byte VESA EDID 1.3 block and a valid checksum. |
 | **OMAP3 GPIO Modules (1..6)** | **DEVICE-ACCURATE MODEL** | DEVICE-ACCURATE MODEL | Implements direction registers, data registers, edge detection, pin callbacks, and GPIO 130 (`MONITOR_HDMI_MUX`). |
@@ -54,12 +54,12 @@ This matrix lists the fidelity level of each component in the emulator.
 - The 512 MB window accommodates high-address stack pointers (`0x881D2690`) and framebuffer windows (`0x8E200000`).
 - **Caveat**: Pointer or heap accesses above 128 MB do not fault in the emulator, but those accesses cause a hardware Data Abort on physical hardware. Do not use non-faulting accesses above 128 MB as proof of hardware memory safety.
 
-### 2. Early Boot Park (`0x80E9C368`) vs Post-Init Behavioral Verification
-- At the end of the default 45,000,000-instruction `boot()` budget, the CPU stops in the ThreadX idle loop at PC `0x80E9C368` (`SP = 0x814CAB14`, `CPSR = 0x60000053`).
-- At this point, `SystemInitThread` (`0x814CAD40`) is blocked on a semaphore and has not completed its late initialization stages.
-- Globals that late initialization stages populate—such as `hw_cap` at `0x815811F4`—still contain `0x00000000` at this point.
-- **Caveat**: Writing to `0x815811F4` while the CPU sits at `0x80E9C368` only tests RAM read/write access. If execution continues into the initialization routine, the firmware overwrites the modified value.
-- To verify a capability change, follow these steps:
-  1. Call `cam.boot_until(post_init_pc)` or `cam.add_pc_hook(post_init_pc, callback, one_shot=True)` to run past the initialization routine.
-  2. Call `cam.bus.write_u32(addr, val)` to write the new value.
-  3. Call `cam.add_mem_read_hook(addr, 4, callback)` or `cam.boot_until(consumer_pc)` to verify that the firmware reads the new value and takes the expected branch.
+### 2. Full-Boot Park (`0x80E9C368`) & Dispatch-Path Thread Harness
+- At the end of the default 45,000,000-instruction `boot()` budget, the CPU stops in `_tx_thread_schedule` (`0x80E9C368`, `SP = 0x814CAB14`, `CPSR = 0x60000053`), which spins waiting for a non-zero `_tx_thread_execute_ptr`.
+- At this point, `SystemInitThread` (`0x814CAD40`) is blocked on a ThreadX semaphore after its initial driver/CRT prefix. The IRQ-injection path in `step_slice()` and `boot_until()` does not call `_tx_thread_resume`, so suspended application threads (such as `thread_DRIVER_entry` at `0x8066C92C`) do not become ready during full-boot (`boot_until(0x8066C92C)` returns `False` from full-boot).
+- Full-boot therefore validates only the straight-line CRT and early driver-init prefix; globals populated later—such as `hw_cap` (`0x815811F4`)—still contain `0x00000000` at `0x80E9C368`.
+- **Dispatch-Path Harness (`cam.run_dispatch_harness`)**:
+  To exercise `thread_DRIVER_entry` (`0x8066C92C`) or any individual worker/custom thread function without waiting on ThreadX synchronization:
+  1. Call `cam.run_dispatch_harness(entry_pc=0x8066C92C)` (or pass a custom worker entry address and optional `camera_type` / `extra_stubs`).
+  2. The harness stubs ThreadX create/get/put primitives (`_txe_mutex_create`, `_tx_mutex_create`, `_txe_semaphore_create`, `_tx_semaphore_create`, `_txe_semaphore_get`, `_tx_semaphore_get`, `_txe_semaphore_put`, `_tx_semaphore_put`), `init_parallel` (`0x8066FE9C`), and `wait_for_init_flags` (`0x8066C7D8`), executes `entry_pc` directly, and returns all dispatched `init_parallel` workers and `wait_for_init_flags` barriers while restoring patched instructions afterward.
+  3. You can also combine `cam.boot_until(target_pc)` with `cam.add_pc_hook(...)` and `cam.add_mem_read_hook(...)` on straight-line code paths to verify runtime reads and branches after an initialization write.

@@ -63,6 +63,11 @@ class Dsmc2Camera:
     # ThreadX Scheduler Idle Loop Addresses
     IDLE_LOOP_PCS = {0x80E9C368, 0x80E9C36C, 0x80E9C370}
 
+    # Driver-Init Dispatch Harness Entry Points (FW 7.4.1)
+    THREAD_DRIVER_ENTRY = 0x8066C92C
+    INIT_PARALLEL_ADDR = 0x8066FE9C
+    WAIT_FOR_INIT_FLAGS_ADDR = 0x8066C7D8
+
     # ThreadX Global Symbols
     TX_THREAD_CREATED_PTR = 0x8149CE68
     TX_THREAD_CURRENT_PTR = 0x8149CE60
@@ -182,15 +187,21 @@ class Dsmc2Camera:
             self.bus.register_device(base, 0x1000, ctrl)
 
         # Attach I2C Slaves:
+        # IOB UCD9090: live single-head FW drives bus 2 (OMAP I2C3) @ 0x70; index table lists 0x7C.
+        # Share rail dict so fault injection on self.ucd_iob is visible at both 0x70 and 0x7C.
+        self.ucd_iob = make_iob_ucd9090(0x70)
+        self.ucd_iob_bus2 = self.ucd_iob
+        self.ucd_iob_idx = make_iob_ucd9090(0x7C)
+        self.ucd_iob_idx.rails = self.ucd_iob.rails
+
         # I2C1: Power Management (TWL4030 @ 0x48), Thermal (TMP411 @ 0x4C), LED Driver (0x45),
-        #       IOB PMBus UCD9090 (0x7C), RSB Fan Driver (0x4D), RSB OLPF Expander (0x38)
+        #       IOB PMBus UCD9090 index entry (0x7C), RSB Fan Driver (0x4D), RSB OLPF Expander (0x38)
         self.pmic = Twl4030Pmic(0x48)
         self.thermal = Tmp411Thermal(0x4C)
-        self.ucd_iob = make_iob_ucd9090(0x7C)
         self.i2c[1].attach_slave(I2cSlave(0x45))
         self.i2c[1].attach_slave(self.pmic)
         self.i2c[1].attach_slave(self.thermal)
-        self.i2c[1].attach_slave(self.ucd_iob)
+        self.i2c[1].attach_slave(self.ucd_iob_idx)
         self.i2c[1].attach_slave(FixedIdI2cDevice(0x4D, "RSB_FAN", 0x01))
         self.i2c[1].attach_slave(FixedIdI2cDevice(0x38, "RSB_OLPF", 0x00))
         self.i2c[1].attach_slave(Twl4030Pmic(0x49))
@@ -220,15 +231,14 @@ class Dsmc2Camera:
         self.i2c[2].attach_slave(FixedIdI2cDevice(0x67, "LSB_VID_CLK", 0xC0))
 
         # I2C3: Atmel maXTouch touch controller (0x4B), EDID EEPROM (0x50), PMIC sub-bus,
-        #       and live single-head bus-2 scan targets (0x70 UCD9090, 0x65 UCD90160,
+        #       and live single-head bus-2 scan targets (0x70 IOB UCD9090, 0x65 UCD90160,
         #       0x3E FocalTech, 0x3B Audio Codec, 0x57 SDI Serializer, 0x27 LCD7 GPIO Exp)
         self.maxtouch = MaXTouchDevice(0x4B, irq_callback=lambda: self.intc.assert_irq(58))
         self.edid = EdidEeprom(0x50)
-        self.ucd_iob_bus2 = make_iob_ucd9090(0x70)
         self.focaltech_rear = FocalTechTouch(0x3E)
         self.i2c[3].attach_slave(self.maxtouch)
         self.i2c[3].attach_slave(self.edid)
-        self.i2c[3].attach_slave(self.ucd_iob_bus2)
+        self.i2c[3].attach_slave(self.ucd_iob)
         self.i2c[3].attach_slave(self.ucd_sensor)
         self.i2c[3].attach_slave(self.focaltech_rear)
         self.i2c[3].attach_slave(FixedIdI2cDevice(0x3B, "IOB_AUDIO_CODEC", 0x0C))
@@ -533,6 +543,141 @@ class Dsmc2Camera:
         if hit_flag["hit"] and on_hit is not None:
             on_hit(self, hit_flag["pc"])
         return hit_flag["hit"]
+
+    def run_dispatch_harness(
+        self,
+        entry_pc: int = 0x8066C92C,
+        camera_type: Optional[int] = None,
+        max_instructions: int = 100_000,
+        extra_stubs: Optional[Dict[int, int]] = None,
+    ) -> Dict[str, Any]:
+        """Execute a thread/driver entry point directly with ThreadX primitives stubbed.
+
+        Full-boot execution stops in `_tx_thread_schedule` (`0x80E9C368`) because timer/IRQ
+        slices do not invoke `_tx_thread_resume` to ready blocked threads. This dispatch-path
+        harness patches ThreadX create/get/put, `init_parallel`, `wait_for_init_flags`, and
+        support helpers with ``mov r0, #ret; bx lr``, sets ``PC = entry_pc``, ``SP = 0x881D2000``,
+        and ``LR = 0x80E9C368``, executes until return, records all ``init_parallel`` tasks
+        and ``wait_for_init_flags`` barriers, and restores all patched code bytes afterward.
+        """
+        if camera_type is None:
+            try:
+                cam_type_val = int(str(self.vfs.env.get("CAMERA_TYPE", "0x16")), 0)
+            except Exception:
+                cam_type_val = 0x16
+        else:
+            cam_type_val = int(camera_type)
+
+        stubs: Dict[int, int] = {
+            # ThreadX mutex & semaphore create/get/put primitives
+            0x80E9F9E4: 0,  # _txe_mutex_create
+            0x80EA1DA8: 0,  # _tx_mutex_create
+            0x80E9FA38: 0,  # _txe_semaphore_create
+            0x80EA30F0: 0,  # _tx_semaphore_create
+            0x80EA04A0: 0,  # _txe_semaphore_get
+            0x80EA3194: 0,  # _tx_semaphore_get
+            0x80EA056C: 0,  # _txe_semaphore_put
+            0x80EA32C0: 0,  # _tx_semaphore_put
+            # Driver-init dispatch & wait barriers
+            self.INIT_PARALLEL_ADDR: 0,
+            self.WAIT_FOR_INIT_FLAGS_ADDR: 0,
+            # Support helpers in thread_DRIVER_entry
+            0x80705C64: cam_type_val,
+            0x8066C310: 0,
+            0x8066C6B4: 0,
+            0x808438C4: 0,
+            0x8070E090: 0,
+            0x80705DBC: 0,
+            0x807044BC: 0,
+            0x80080F20: 0,
+            0x802576B4: 0,
+            0x804D3814: 0,
+            0x8008FEE0: 0,
+            0x8076B414: 0,
+            0x804960BC: 0,
+            0x8066F374: 0,
+            0x8066F4FC: 0,
+            0x8066ED38: 0,
+            0x8066ED5C: 0,
+            0x8066E7F4: 0,
+            0x8066FA8C: 0,
+            0x8066E5D4: 0,
+            0x8066AEE0: 0,
+            0x8066B000: 0,
+            0x8066F574: 0,
+            0x8066AECC: 0,
+            0x8066AEF4: 0,
+            0x8066AF08: 0,
+            0x8066EDCC: 0,
+            0x8066F284: 0,
+            0x8066ED10: 0,
+        }
+        if extra_stubs:
+            stubs.update({int(k): int(v) for k, v in extra_stubs.items()})
+
+        dispatched: List[Dict[str, Any]] = []
+        waits: List[int] = []
+        saved_code: Dict[int, bytes] = {}
+        hook_handles: List[int] = []
+
+        def _on_init_parallel(c: "Dsmc2Camera", _pc: int):
+            name_ptr = c.cpu.get_r(0)
+            fn_ptr = c.cpu.get_r(1)
+            flag = c.cpu.get_r(2) | (c.cpu.get_r(3) << 32)
+            try:
+                dep_lo = c.bus.read_u32(c.cpu.sp)
+                dep_hi = c.bus.read_u32(c.cpu.sp + 4)
+                dep = dep_lo | (dep_hi << 32)
+            except Exception:
+                dep = 0
+            name = ""
+            if name_ptr:
+                try:
+                    raw = bytes(c.bus.read_mem(name_ptr, 48)).split(b"\x00", 1)[0]
+                    name = raw.decode("ascii", errors="replace")
+                except Exception:
+                    name = f"0x{name_ptr:08X}"
+            dispatched.append({
+                "name": name,
+                "fn_ptr": fn_ptr,
+                "flag": flag,
+                "dep": dep,
+            })
+
+        def _on_wait_flags(c: "Dsmc2Camera", _pc: int):
+            mask = c.cpu.get_r(0) | (c.cpu.get_r(1) << 32)
+            waits.append(mask)
+
+        try:
+            for addr, ret_val in stubs.items():
+                saved_code[addr] = bytes(self.bus.read_mem(addr, 8))
+                v = int(ret_val) & 0xFFFF
+                if 0 <= v <= 0xFF:
+                    instr0 = 0xE3A00000 | v  # mov r0, #v
+                else:
+                    instr0 = 0xE3000000 | ((v & 0xF000) << 4) | (v & 0x0FFF)  # movw r0, #v
+                self.bus.write_mem(addr, struct.pack("<II", instr0, 0xE12FFF1E))
+
+            hook_handles.append(self.add_pc_hook(self.INIT_PARALLEL_ADDR, _on_init_parallel))
+            hook_handles.append(self.add_pc_hook(self.WAIT_FOR_INIT_FLAGS_ADDR, _on_wait_flags))
+
+            sentinel_lr = 0x80E9C368
+            self.cpu.pc = int(entry_pc)
+            self.cpu.sp = 0x881D2000
+            self.cpu.lr = sentinel_lr
+            completed = self.boot_until(sentinel_lr, max_instructions=max_instructions, step_size=min(10_000, max_instructions))
+        finally:
+            for h in hook_handles:
+                self.remove_hook(h)
+            for addr, orig in saved_code.items():
+                self.bus.write_mem(addr, bytes(orig))
+
+        return {
+            "completed": completed,
+            "entry_pc": entry_pc,
+            "dispatched": dispatched,
+            "wait_barriers": waits,
+        }
 
     def add_pc_hook(
         self,

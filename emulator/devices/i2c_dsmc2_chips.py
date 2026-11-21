@@ -1,12 +1,14 @@
 """
-Confirmed RED DSMC2 I2C Peripheral Chip Models (`dsmc2-sdk/reference/I2C_DEVICE_MAP.md`).
+RED DSMC2 I2C Peripheral Chip Models (`dsmc2-sdk/reference/I2C_DEVICE_MAP.md`).
 
-Includes:
+Bus/slave addresses and standard register layouts are modeled from datasheet and
+`I2C_DEVICE_MAP.md` assignments:
   - `Si5346ClockSynth` (0x6C): Silicon Labs Si5346 ISP jitter-attenuating clock synthesizer
   - `Dac7578SensorDac` (0x49, 0x4B): TI DAC7578 8-channel 12-bit sensor bias DAC
   - `FocalTechTouch` (0x3E): FocalTech FT5x06 RED Touch 7.0 capacitive touch controller
-  - `FixedIdI2cDevice`: scan-verified auxiliary I2C peripherals (LSB Temp 0x55, Video Clk 0xC0,
-    IOB Audio Codec 0x0C, RSB Fan/OLPF, LCD7 GPIO Expander)
+    (standard FT5x06 register offsets; default CHIP_ID/FIRMWARE_ID are synthetic sample values)
+  - `FixedIdI2cDevice`: scan-verified auxiliary I2C peripheral stubs with synthetic sample IDs
+    (LSB Temp 0x4C, Video Clk 0x67, IOB Audio Codec 0x3B, RSB Fan/OLPF, LCD7 GPIO Expander)
 """
 
 from typing import Dict, Any, List
@@ -95,8 +97,9 @@ class Dac7578SensorDac(I2cSlave):
 class FocalTechTouch(I2cSlave):
     """
     FocalTech FT5x06 RED Touch 7.0 Capacitive Touch Controller (addr 0x3E).
-    Confirmed registers: `0x00 DEV_MODE`, `0x02 TD_STATUS`, `0x03..0x06 P1_XY`,
-    `0xA3 CHIP_ID = 0x55`, `0xA6 FIRMWARE_ID = 0x01`.
+    Standard FT5x06 register offsets (`0x00 DEV_MODE`, `0x02 TD_STATUS`, `0x03..0x06 P1_XY`,
+    `0xA3 CHIP_ID`, `0xA6 FIRMWARE_ID`). Default `CHIP_ID = 0x55` and `FIRMWARE_ID = 0x01`
+    are synthetic sample values for emulation, not SDK-verified firmware constants.
     """
 
     REG_DEV_MODE = 0x00
@@ -144,7 +147,7 @@ class FocalTechTouch(I2cSlave):
 
 
 class FixedIdI2cDevice(I2cSlave):
-    """Generic DSMC2 I2C peripheral with verified presence / scan ID at register 0."""
+    """Generic DSMC2 I2C peripheral stub returning a synthetic presence/sample ID byte at register 0."""
 
     def __init__(self, address: int, name: str, device_id: int = 0x00):
         super().__init__(address)

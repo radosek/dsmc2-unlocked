@@ -1,15 +1,18 @@
 """
 Texas Instruments UCD9090 & UCD90160 PMBus Power Sequencer Models.
 
-Proven against DSMC2 FW 7.4.1 drivers (`clean/ucd9090.c`, `clean/ucd90160.c`) and
-`dsmc2-sdk/reference/UCD_REGISTER_MAP.md` + `POWER_RAIL_MAP.md`:
-  - IOB  : TI UCD9090  (10 rails, pages 0..10 valid, 0x7C primary / 0x70 single-head alias)
-  - ISP  : TI UCD9090  (10 rails, pages 0..10 valid, bus 2 0x70)
-  - Sensor: TI UCD90160 (16 rails, pages 0..16 valid, bus 2 0x65)
+PMBus protocol mechanics verified against DSMC2 FW 7.4.1 drivers (`clean/ucd9090.c`,
+`clean/ucd90160.c`) and `dsmc2-sdk/reference/UCD_REGISTER_MAP.md`:
+  - IOB   : TI UCD9090  (10 rails, pages 0..10 valid; live single-head FW drives bus 2
+            `0x70` per `test i2c scan 2` / E49 logs, while `0x7C` is the static index-table entry)
+  - ISP   : TI UCD9090  (10 rails, pages 0..10 valid, bus 2 `0x70`)
+  - Sensor: TI UCD90160 (16 rails, pages 0..16 valid, bus 2 `0x65`; page 3 = `SENSOR_VAA`)
 
 Includes exact LINEAR16 / LINEAR11 PMBus codecs, offline page-limit discriminator
 (`0x10` rejected by UCD9090 with STATUS_CML, accepted by UCD90160), and TI
 MFR_GPO_SELECT (0xFA) / MFR_GPO_CONFIG (0xFB) bit-3 state readback.
+Note: Per-board rail name and nominal voltage tables in `make_*_ucd*` are synthetic
+sample defaults for simulation, not complete SDK-verified hardware calibration tables.
 """
 
 import math
@@ -384,8 +387,11 @@ def _make_rail(page: int, name: str, nominal_v: float, ton_ms: float) -> UcdRail
     )
 
 
-def make_iob_ucd9090(address: int = 0x7C) -> UcdPowerSequencer:
-    """IOB UCD9090 (10 rails: pages 0..9 + spare page 10 max)."""
+def make_iob_ucd9090(address: int = 0x70) -> UcdPowerSequencer:
+    """IOB UCD9090 (10 rails, pages 0..10; live FW drives bus 2 0x70, static index entry is 0x7C).
+
+    Note: rail names and nominal voltages below are synthetic sample defaults for simulation.
+    """
     specs = [
         (0, "IOB_3V3", 3.30, 1.0),
         (1, "IOB_2V5", 2.50, 2.0),
@@ -408,7 +414,10 @@ def make_iob_ucd9090(address: int = 0x7C) -> UcdPowerSequencer:
 
 
 def make_isp_ucd9090(address: int = 0x70) -> UcdPowerSequencer:
-    """ISP UCD9090 (values aligned to live_isp_power.txt: core 0.91V, Vref 0.75V, Vtt 0.74V)."""
+    """ISP UCD9090 (10 rails, pages 0..10; sample rails include live core 0.91V, Vref 0.75V, Vtt 0.74V).
+
+    Note: remaining rail names and nominal voltages are synthetic sample defaults for simulation.
+    """
     specs = [
         (0, "ISP_CORE_0V9", 0.91, 1.0),
         (1, "ISP_VREF_0V75", 0.75, 2.0),
@@ -431,7 +440,10 @@ def make_isp_ucd9090(address: int = 0x70) -> UcdPowerSequencer:
 
 
 def make_sensor_ucd90160(address: int = 0x65) -> UcdPowerSequencer:
-    """Sensor UCD90160 (16 rails: page 3 = SENSOR_VAA monitored by ucd90160_monitor_sensor_vaa)."""
+    """Sensor UCD90160 (16 rails, pages 0..16; page 3 = SENSOR_VAA monitored by ucd90160_monitor_sensor_vaa).
+
+    Note: remaining rail names and nominal voltages are synthetic sample defaults for simulation.
+    """
     specs = [
         (0, "SNS_1V8", 1.80, 1.0),
         (1, "SNS_2V8", 2.80, 2.0),

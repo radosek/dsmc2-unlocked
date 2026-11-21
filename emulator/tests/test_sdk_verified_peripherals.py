@@ -204,7 +204,21 @@ def test_hdq_onewire_presence_search_match_and_md5(camera):
     expected_roms = {b.rom_id: b for b in camera.hdq.devices}
     assert set(roms) == set(expected_roms.keys())
 
-    # 3. Match ROM + Read Memory reads EEPROM part/serial/MD5 over MMIO
+    # 3. Match ROM + Read Memory reads real onewire_compute_signature record offsets over MMIO
+    lsb_board = camera.hdq.get_board("LSB")
+    rsb_board = camera.hdq.get_board("RSB")
+    sensor_board = camera.hdq.get_board("SENSOR")
+    assert lsb_board is not None and lsb_board.part_num == "131-0727"
+    assert rsb_board is not None and rsb_board.part_num == "131-0726"
+    assert sensor_board is not None and sensor_board.board_id == 2
+    assert {b.name: b.board_id for b in camera.hdq.devices} == {
+        "IOB": 0,
+        "ISP": 1,
+        "SENSOR": 2,
+        "RSB": 3,
+        "LSB": 4,
+    }
+
     isp_board = camera.hdq.get_board("ISP")
     assert isp_board is not None
     assert _hdq_reset(camera.bus) is True
@@ -214,25 +228,36 @@ def test_hdq_onewire_presence_search_match_and_md5(camera):
     _hdq_write_byte(camera.bus, 0xF0)  # DS2431 Read Memory
     _hdq_write_byte(camera.bus, 0x00)  # TA1
     _hdq_write_byte(camera.bus, 0x00)  # TA2
-    eeprom = bytes(_hdq_read_byte(camera.bus) for _ in range(128))
+    eeprom = bytes(_hdq_read_byte(camera.bus) for _ in range(256))
 
-    part_num = eeprom[0x20:0x30].split(b"\x00", 1)[0].decode("ascii")
-    serial_num = eeprom[0x40:0x50].split(b"\x00", 1)[0].decode("ascii")
-    stored_md5 = eeprom[0x70:0x80]
+    s_20 = eeprom[0x20:0x31].split(b"\x00", 1)[0].decode("ascii")
+    s_31 = eeprom[0x31:0x42].split(b"\x00", 1)[0].decode("ascii")
+    field_42 = eeprom[0x42:0x44]
+    sig_type = eeprom[0x44]
+    header_ver = eeprom[0x45]
+    s_46 = eeprom[0x46:0x57].split(b"\x00", 1)[0].decode("ascii")
+    part_num = eeprom[0x57:0x68].split(b"\x00", 1)[0].decode("ascii")
+    s_68 = eeprom[0x68:0x79].split(b"\x00", 1)[0].decode("ascii")
+    serial_num = eeprom[0x79:0x8A].split(b"\x00", 1)[0].decode("ascii")
+    hash_out_md5 = eeprom[0x09:0x19]
+    stored_md5 = eeprom[0xBF:0xCF]
+    assert s_20 == isp_board.name
+    assert s_31 == isp_board.rev_str
     assert part_num == isp_board.part_num
     assert serial_num == isp_board.serial_num
+    assert hash_out_md5 == stored_md5
 
     recomputed = compute_onewire_md5_signature(
-        rom_id=isp_board.rom_id,
-        class_str=isp_board.name,
-        rev_str=isp_board.rev_str,
-        field_42=eeprom[0x0C:0x0E],
-        sig_type=eeprom[0x0E],
-        header_ver=eeprom[0x0F],
-        board_info=eeprom[0x10:0x20].split(b"\x00", 1)[0].decode("ascii"),
-        part_num=part_num,
-        extra_field=eeprom[0x30:0x40].split(b"\x00", 1)[0].decode("ascii"),
-        serial_num=serial_num,
+        rom_id=eeprom[0x01:0x09],
+        s_20=s_20,
+        s_31=s_31,
+        field_42=field_42,
+        sig_type=sig_type,
+        header_ver=header_ver,
+        s_46=s_46,
+        s_57=part_num,
+        s_68=s_68,
+        s_79=serial_num,
     )
     assert stored_md5 == recomputed
     assert camera.hdq.verify_board("ISP") is True
@@ -316,11 +341,14 @@ def test_linear16_and_linear11_roundtrips():
 
 
 def test_ucd_sequencers_page_discriminator_gpo_and_faults(camera):
-    assert camera.ucd_iob is camera.i2c[1].slaves[0x7C]
+    assert camera.ucd_iob.address == 0x70
+    assert camera.ucd_iob is camera.i2c[3].slaves[0x70]
+    assert camera.ucd_iob_bus2 is camera.ucd_iob
+    assert camera.ucd_iob_idx is camera.i2c[1].slaves[0x7C]
+    assert camera.ucd_iob_idx.rails is camera.ucd_iob.rails
     assert camera.ucd_isp is camera.i2c[2].slaves[0x70]
     assert camera.ucd_sensor is camera.i2c[2].slaves[0x65]
     assert camera.ucd_sensor is camera.i2c[3].slaves[0x65]
-    assert camera.ucd_iob_bus2 is camera.i2c[3].slaves[0x70]
 
     # Read MFR_MODEL over OmapI2c (I2C2 @ 0x48072000)
     isp_model = _i2c_read_reg(camera.bus, 0x48072000, 0x70, UcdPowerSequencer.CMD_MFR_MODEL, 7)
@@ -397,3 +425,59 @@ def test_si5346_dac7578_and_focaltech_i2c_chips(camera):
     x = ((td[1] & 0x0F) << 8) | td[2]
     y = ((td[3] & 0x0F) << 8) | td[4]
     assert (x, y) == (512, 288)
+
+
+def _arm_movw(rd: int, imm16: int) -> int:
+    imm4 = (imm16 >> 12) & 0xF
+    imm12 = imm16 & 0xFFF
+    return 0xE3000000 | (imm4 << 16) | ((rd & 0xF) << 12) | imm12
+
+
+def _arm_movt(rd: int, imm16: int) -> int:
+    imm4 = (imm16 >> 12) & 0xF
+    imm12 = imm16 & 0xFFF
+    return 0xE3400000 | (imm4 << 16) | ((rd & 0xF) << 12) | imm12
+
+
+def _arm_bl(pc: int, target: int) -> int:
+    off = ((target - (pc + 8)) >> 2) & 0xFFFFFF
+    return 0xEB000000 | off
+
+
+def test_dispatch_path_thread_harness(camera):
+    """Verify run_dispatch_harness() executes thread_DRIVER_entry directly and records init_parallel tasks."""
+    entry = camera.THREAD_DRIVER_ENTRY
+    camera.bus.write_mem(0x81500000, b"SYNTH_TASK\x00")
+
+    words = [
+        0xE92D4010,  # +0x00: push {r4, lr}
+        0xE24DD008,  # +0x04: sub sp, sp, #8
+        0xE3A00001,  # +0x08: mov r0, #1
+        0xE3A01000,  # +0x0C: mov r1, #0
+        0xE58D0000,  # +0x10: str r0, [sp, #0] (dep_lo = 1)
+        0xE58D1004,  # +0x14: str r1, [sp, #4] (dep_hi = 0)
+        _arm_movw(0, 0x0000),  # +0x18: r0 = 0x81500000 ("SYNTH_TASK")
+        _arm_movt(0, 0x8150),  # +0x1C
+        _arm_movw(1, 0x0098),  # +0x20: r1 = 0x80670098
+        _arm_movt(1, 0x8067),  # +0x24
+        0xE3A02004,  # +0x28: mov r2, #4 (flag_lo = 0x4)
+        0xE3A03000,  # +0x2C: mov r3, #0 (flag_hi = 0)
+        _arm_bl(entry + 0x30, camera.INIT_PARALLEL_ADDR),
+        0xE3A00004,  # +0x34: mov r0, #4 (wait mask = 0x4)
+        0xE3A01000,  # +0x38: mov r1, #0
+        0xE3E02000,  # +0x3C: mvn r2, #0
+        _arm_bl(entry + 0x40, camera.WAIT_FOR_INIT_FLAGS_ADDR),
+        0xE28DD008,  # +0x44: add sp, sp, #8
+        0xE8BD8010,  # +0x48: pop {r4, pc}
+    ]
+    camera.bus.write_mem(entry, b"".join(struct.pack("<I", w) for w in words))
+
+    res = camera.run_dispatch_harness(entry_pc=entry, max_instructions=500)
+    assert res["completed"] is True
+    assert res["entry_pc"] == entry
+    assert len(res["dispatched"]) == 1
+    assert res["dispatched"][0]["name"] == "SYNTH_TASK"
+    assert res["dispatched"][0]["fn_ptr"] == 0x80670098
+    assert res["dispatched"][0]["flag"] == 0x04
+    assert res["dispatched"][0]["dep"] == 0x01
+    assert res["wait_barriers"] == [0x04]

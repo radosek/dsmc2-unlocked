@@ -102,7 +102,7 @@ class OmapScm(Device):
 
     def __init__(self):
         self.sysconfig = 0x00000001
-        self.idcode = 0x1B89102F          # ES1.2 DM3725 / OMAP3630
+        self.idcode = 0x1B89102F          # ES1.1 DM3725 / OMAP3630 (ES1.2 = 0x2B89102F)
         self.control_status = 0x0000030D  # Normal device, NAND CS0 boot order
         self.devconf0 = 0x05000000
         self.devconf1 = 0x00000040
@@ -139,7 +139,7 @@ class OmapScmId(Device):
     """
     OMAP3630 / DM3725 System Control Module Identification Window (SCM_ID) at 0x4830A000 (size 0x1000).
     TRM Reference: SPRUGN4 Table 2-5 / Chapter 7.
-      - CONTROL_IDCODE (0x0204): 0x1B89102F (DM3725 / OMAP3630 ES1.2)
+      - CONTROL_IDCODE (0x0204): 0x1B89102F (DM3725 / OMAP3630 ES1.1; ES1.2 = 0x2B89102F)
       - CONTROL_DIE_ID (0x0218..0x0224): synthetic 128-bit SoC die identifier (never real hardware ID).
     """
 

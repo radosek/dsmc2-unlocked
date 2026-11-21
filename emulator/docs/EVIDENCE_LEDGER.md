@@ -83,8 +83,8 @@ This ledger lists hardware and software facts with source citations and confiden
 | DSP | TI TMS320C64x+ | CONFIRMED | `dsp/rdc_dsp_app.out` is a TI C6000 COFF binary with 7,951 symbols. |
 | LSB FPGA | Xilinx Kintex-7 | CONFIRMED | `lsbfpga/wlsbfpga.4.bin` and `.5.bin` bitstreams in the firmware slot. |
 | Rear Devices | STM32 / Cypress PSoC | CONFIRMED | Firmware files under `peripherals/reardevices/`. |
-| Accessory Bus | UART / 1-Wire MD5 | CONFIRMED | Handshake sequence `WHO` -> `VERSION` -> `REDINFO` -> `DEVID`; 1-Wire salt `27 A8 12 4F B3 EA`; `dsmc2-sdk` `clean/onewire.c` EEPROM `0x20`/`0x40`/`0x70`. |
+| Accessory Bus | UART / 1-Wire MD5 | CONFIRMED | Handshake sequence `WHO` -> `VERSION` -> `REDINFO` -> `DEVID`; 1-Wire salt `27 A8 12 4F B3 EA`; `onewire_compute_signature` (`@0x80690028` in `clean/onewire.c`) record offsets `+0x20`/`+0x31`/`+0x42`/`+0x44`/`+0x45`/`+0x46`/`+0x57`/`+0x68`/`+0x79` and signature at `+0x09`/`+0xBF`. |
 | MINI-MAG Auth | ATA IDENTIFY + SMART 0x90 | CONFIRMED | `AuthenticateREDMedia` (`0x8009E62C`) checks SMART page `0x90`. |
-| DSMC2 I2C Sequencers | TI UCD9090 (`0x7C`, `0x70`) / UCD90160 (`0x65`) | CONFIRMED | `dsmc2-sdk` `clean/ucd9090.c`, `ucd90160.c`, `I2C_DEVICE_MAP.md`, `UCD_REGISTER_MAP.md`; E49 ISP power fault drops `0x70` + `0x6C`. |
+| DSMC2 I2C Sequencers | TI UCD9090 (`0x70` live / `0x7C` idx) / UCD90160 (`0x65`) | CONFIRMED | `dsmc2-sdk` `clean/ucd9090.c`, `ucd90160.c`, `I2C_DEVICE_MAP.md`, `UCD_REGISTER_MAP.md`; live FW drives IOB & ISP at bus 2 `0x70`, E49 ISP power fault drops `0x70` + `0x6C`. |
 | DSMC2 I2C Chips | Si5346 (`0x6C`), DAC7578 (`0x49`/`0x4B`), FT5x06 (`0x3E`) | CONFIRMED | `dsmc2-sdk` `reference/I2C_DEVICE_MAP.md` (I2C2 & I2C3 peripheral assignments). |
 | RED Command Protocol v2 | `#$[src]:[cmd]:[param]:[args]:*[CK]\n` | CONFIRMED | `dsmc2-sdk` `host/rftp-rs/src/rcp.rs` & `rcp_parser_structs.h` (`#`, `$`, `@`, `:`, `*`, `\n` framing, XOR checksum). |

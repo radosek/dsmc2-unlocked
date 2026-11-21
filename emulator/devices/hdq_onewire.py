@@ -41,24 +41,42 @@ def make_rom_id(family: int, serial48: int) -> bytes:
 
 def compute_onewire_md5_signature(
     rom_id: bytes,
-    class_str: str,
-    rev_str: str,
+    s_20: str,
+    s_31: str,
     field_42: bytes,
     sig_type: int,
     header_ver: int,
-    board_info: str,
-    part_num: str,
-    extra_field: str,
-    serial_num: str,
+    s_46: str,
+    s_57: str,
+    s_68: str,
+    s_79: str,
     extra_v2: Tuple[str, str] = ("", ""),
 ) -> bytes:
     """
-    Reproduce `onewire_compute_signature` (`@0x80690028` in `clean/onewire.c`):
+    Reproduce `onewire_compute_signature` (`@0x80690028` in `clean/onewire.c`).
+
+    Verified firmware record field layout and MD5 input order:
+      - `+0x01..0x09` (8B): `rom_id`
+      - `+0x09..0x19` (16B): computed MD5 signature output
+      - `+0x20..0x31` (17B): `s_20` (board name)
+      - `+0x31..0x42` (17B): `s_31` (revision)
+      - `+0x42..0x44` (2B): `field_42`
+      - `+0x44` (1B): `sig_type` (0, 1, or 2)
+      - `+0x45` (1B): `header_ver`
+      - `+0x46..0x57` (17B): `s_46` (board info)
+      - `+0x57..0x68` (17B): `s_57` (module part number)
+      - `+0x68..0x79` (17B): `s_68` (extra field)
+      - `+0x79..0x8A` (17B): `s_79` (serial number)
+      - `+0x8A..0x9B` (17B): `extra_v2[0]` (v2 assembly part number)
+      - `+0x9B..0xAC` (17B): `extra_v2[1]` (v2 extra string)
+      - `+0xBF..0xCF` (16B): stored MD5 signature compared by `onewire_verify_signature`
+
+    Hash computation:
       sig_type == 0: 16 zero bytes
-      sig_type == 1: MD5(salt(6) || rom_id(8) || class || rev || field_42(2) ||
-                         sig_type(1) || header_ver(1) || board_info || part_num ||
-                         extra_field || serial_num)
-      sig_type == 2: same + extra_v2[0] + extra_v2[1]
+      sig_type == 1: MD5(salt(6) || rom_id(8) || s@0x20 || s@0x31 || field_42(2) ||
+                         sig_type(1) || header_ver(1) || s@0x46 || s@0x57 ||
+                         s@0x68 || s@0x79)
+      sig_type == 2: same + s@0x8A + s@0x9B
     """
     if sig_type == 0:
         return b"\x00" * 16
@@ -68,14 +86,14 @@ def compute_onewire_md5_signature(
     h = hashlib.md5()
     h.update(ONEWIRE_MD5_SALT)
     h.update(rom_id[:8])
-    h.update(class_str.encode("ascii"))
-    h.update(rev_str.encode("ascii"))
+    h.update(s_20.encode("ascii"))
+    h.update(s_31.encode("ascii"))
     h.update(field_42[:2].ljust(2, b"\x00"))
     h.update(bytes([sig_type & 0xFF, header_ver & 0xFF]))
-    h.update(board_info.encode("ascii"))
-    h.update(part_num.encode("ascii"))
-    h.update(extra_field.encode("ascii"))
-    h.update(serial_num.encode("ascii"))
+    h.update(s_46.encode("ascii"))
+    h.update(s_57.encode("ascii"))
+    h.update(s_68.encode("ascii"))
+    h.update(s_79.encode("ascii"))
     if sig_type == 2:
         h.update(extra_v2[0].encode("ascii"))
         h.update(extra_v2[1].encode("ascii"))
@@ -83,82 +101,108 @@ def compute_onewire_md5_signature(
 
 
 def _write_cstr(buf: bytearray, offset: int, max_len: int, text: str):
-    raw = text.encode("ascii", errors="replace")[:max_len]
+    raw = text.encode("ascii", errors="replace")[: max(0, max_len - 1)]
     buf[offset : offset + max_len] = raw.ljust(max_len, b"\x00")
+
+
+def _read_cstr(buf: bytearray, start: int, end: int) -> str:
+    return bytes(buf[start:end]).split(b"\x00", 1)[0].decode("ascii", errors="replace")
 
 
 @dataclass
 class OneWireBoardDevice:
-    """Virtual DSMC2 board 1-Wire identity EEPROM (DS2431-class, 128 bytes)."""
+    """
+    Virtual DSMC2 board 1-Wire identity record (256-byte EEPROM / decoded record buffer).
+
+    Note: `board_id` is an emulator-internal handle aligned to the power-sequencer
+    index (`IOB=0`, `ISP=1`, `SENSOR=2`, `RSB=3`, `LSB=4`); it is not stored in
+    1-Wire EEPROM. Firmware scan order per `SYSTEM_ERROR_34_FLOW.md` is:
+    `IOB -> ISP_PRE -> SENSOR -> ISP -> RSB -> LSB`.
+    """
 
     board_id: int
-    name: str          # IOB, ISP, LSB, RSB, SENSOR
-    part_num: str      # e.g. "131-0725"
-    serial_num: str    # synthetic serial, e.g. "SYNTH-IOB-0001"
-    rev_str: str       # e.g. "3C"
+    name: str          # IOB, ISP, SENSOR, RSB, LSB (record +0x20)
+    part_num: str      # e.g. "131-0725" (record +0x57)
+    serial_num: str    # synthetic serial, e.g. "SYNTH-IOB-0001" (record +0x79)
+    rev_str: str       # e.g. "3C" (record +0x31)
     rom_id: bytes
     header_ver: int = 1
     sig_type: int = 1
     field_42: bytes = b"\x00\x00"
     board_info: str = ""
     extra_field: str = ""
-    eeprom: bytearray = field(default_factory=lambda: bytearray(128))
+    s_8a: str = ""
+    s_9b: str = ""
+    eeprom: bytearray = field(default_factory=lambda: bytearray(256))
 
     def __post_init__(self):
         if len(self.rom_id) != 8 or crc8_maxim(self.rom_id) != 0:
             raise ValueError(f"Invalid 1-Wire ROM ID CRC for {self.name}: {self.rom_id.hex()}")
         if not self.board_info:
             self.board_info = self.name
+        if len(self.eeprom) < 256:
+            self.eeprom = bytearray(self.eeprom).ljust(256, b"\x00")
         self.rebuild_eeprom(sign=True)
 
     def rebuild_eeprom(self, sign: bool = True):
-        """Populate EEPROM bytes at exact offsets read by `onewire_read_board_data_from_index`."""
-        mem = bytearray(128)
-        _write_cstr(mem, 0x00, 8, self.name)
-        _write_cstr(mem, 0x08, 4, self.rev_str)
-        mem[0x0C:0x0E] = self.field_42[:2].ljust(2, b"\x00")
-        mem[0x0E] = self.sig_type & 0xFF
-        mem[0x0F] = self.header_ver & 0xFF
-        _write_cstr(mem, 0x10, 16, self.board_info)
-        _write_cstr(mem, 0x20, 16, self.part_num)
-        _write_cstr(mem, 0x30, 16, self.extra_field)
-        _write_cstr(mem, 0x40, 16, self.serial_num)
+        """Populate record bytes at exact offsets read by `onewire_compute_signature` / `onewire_verify_signature`."""
+        mem = bytearray(256)
+        mem[0x01:0x09] = self.rom_id[:8]
+        _write_cstr(mem, 0x20, 17, self.name)
+        _write_cstr(mem, 0x31, 17, self.rev_str)
+        mem[0x42:0x44] = self.field_42[:2].ljust(2, b"\x00")
+        mem[0x44] = self.sig_type & 0xFF
+        mem[0x45] = self.header_ver & 0xFF
+        _write_cstr(mem, 0x46, 17, self.board_info)
+        _write_cstr(mem, 0x57, 17, self.part_num)
+        _write_cstr(mem, 0x68, 17, self.extra_field)
+        _write_cstr(mem, 0x79, 17, self.serial_num)
+        _write_cstr(mem, 0x8A, 17, self.s_8a)
+        _write_cstr(mem, 0x9B, 17, self.s_9b)
         self.eeprom = mem
         if sign:
             sig = self.expected_signature()
-            self.eeprom[0x50:0x60] = sig
-            self.eeprom[0x70:0x80] = sig
+            self.eeprom[0x09:0x19] = sig
+            self.eeprom[0xBF:0xCF] = sig
 
     def stored_serial(self) -> str:
-        raw = bytes(self.eeprom[0x40:0x50])
-        return raw.split(b"\x00", 1)[0].decode("ascii", errors="replace")
+        return _read_cstr(self.eeprom, 0x79, 0x8A)
 
     def stored_part_num(self) -> str:
-        raw = bytes(self.eeprom[0x20:0x30])
-        return raw.split(b"\x00", 1)[0].decode("ascii", errors="replace")
+        return _read_cstr(self.eeprom, 0x57, 0x68)
 
     def expected_signature(self) -> bytes:
         return compute_onewire_md5_signature(
-            rom_id=self.rom_id,
-            class_str=self.name,
-            rev_str=self.rev_str,
-            field_42=bytes(self.eeprom[0x0C:0x0E]),
-            sig_type=self.sig_type,
-            header_ver=self.header_ver,
-            board_info=bytes(self.eeprom[0x10:0x20]).split(b"\x00", 1)[0].decode("ascii"),
-            part_num=self.stored_part_num(),
-            extra_field=bytes(self.eeprom[0x30:0x40]).split(b"\x00", 1)[0].decode("ascii"),
-            serial_num=self.stored_serial(),
+            rom_id=bytes(self.eeprom[0x01:0x09]),
+            s_20=_read_cstr(self.eeprom, 0x20, 0x31),
+            s_31=_read_cstr(self.eeprom, 0x31, 0x42),
+            field_42=bytes(self.eeprom[0x42:0x44]),
+            sig_type=self.eeprom[0x44],
+            header_ver=self.eeprom[0x45],
+            s_46=_read_cstr(self.eeprom, 0x46, 0x57),
+            s_57=self.stored_part_num(),
+            s_68=_read_cstr(self.eeprom, 0x68, 0x79),
+            s_79=self.stored_serial(),
+            extra_v2=(
+                _read_cstr(self.eeprom, 0x8A, 0x9B),
+                _read_cstr(self.eeprom, 0x9B, 0xAC),
+            ),
         )
 
     def verify_signature(self) -> bool:
-        if self.sig_type == 0:
+        if self.eeprom[0x44] == 0:
             return True
-        return bytes(self.eeprom[0x70:0x80]) == self.expected_signature()
+        return bytes(self.eeprom[0xBF:0xCF]) == self.expected_signature()
 
 
 def make_default_dsmc2_boards() -> List[OneWireBoardDevice]:
-    """Create the 5 standard DSMC2 board 1-Wire identities with safe synthetic serials."""
+    """
+    Create the 5 standard DSMC2 board 1-Wire identities with safe synthetic serials.
+
+    Part numbers follow verified DSMC2 board PCA assignments (LSB = 131-0727, RSB = 131-0726).
+    `board_id` values (`IOB=0`, `ISP=1`, `SENSOR=2`, `RSB=3`, `LSB=4`) are emulator-internal
+    handles aligned to the power-sequencer index (`sensor=2`).
+    """
     return [
         OneWireBoardDevice(
             board_id=0,
@@ -177,7 +221,7 @@ def make_default_dsmc2_boards() -> List[OneWireBoardDevice]:
             rom_id=make_rom_id(0x2D, 0x0002),
         ),
         OneWireBoardDevice(
-            board_id=5,
+            board_id=2,
             name="SENSOR",
             part_num="131-0776",
             serial_num="SYNTH-SNS-0003",
@@ -185,20 +229,20 @@ def make_default_dsmc2_boards() -> List[OneWireBoardDevice]:
             rom_id=make_rom_id(0x2D, 0x0003),
         ),
         OneWireBoardDevice(
-            board_id=2,
-            name="LSB",
-            part_num="131-0726",
-            serial_num="SYNTH-LSB-0004",
-            rev_str="2A",
-            rom_id=make_rom_id(0x2D, 0x0004),
-        ),
-        OneWireBoardDevice(
             board_id=3,
             name="RSB",
-            part_num="131-0727",
+            part_num="131-0726",
             serial_num="SYNTH-RSB-0005",
             rev_str="2A",
             rom_id=make_rom_id(0x2D, 0x0005),
+        ),
+        OneWireBoardDevice(
+            board_id=4,
+            name="LSB",
+            part_num="131-0727",
+            serial_num="SYNTH-LSB-0004",
+            rev_str="2A",
+            rom_id=make_rom_id(0x2D, 0x0004),
         ),
     ]
 
@@ -481,7 +525,7 @@ class OmapHdq1Wire(Device):
         if dev is None:
             return False
         dev.serial_num = new_serial
-        _write_cstr(dev.eeprom, 0x40, 16, new_serial)
+        _write_cstr(dev.eeprom, 0x79, 17, new_serial)
         return True
 
     def remove_board(self, name: str) -> bool:
