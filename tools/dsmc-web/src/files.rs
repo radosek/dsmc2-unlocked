@@ -2,7 +2,7 @@
 
 use dsmc_core::error_dict::ErrorDictionary;
 use dsmc_core::log::{self, Patterns, Triage};
-use dsmc_fw_core::{filetype, fpga, package, preset, redone};
+use dsmc_fw_core::{cfg, filetype, fpga, package, preset, redone};
 use serde::Serialize;
 use serde_bytes::ByteBuf;
 use wasm_bindgen::prelude::*;
@@ -246,4 +246,29 @@ pub fn preset_build(version: i32, params: JsValue) -> Result<Vec<u8>, JsError> {
         n
     })
     .map_err(js_err)
+}
+
+#[derive(Serialize)]
+struct SqliteTable {
+    name: String,
+    columns: Vec<String>,
+    rows: Vec<Vec<String>>,
+    total: u64,
+}
+
+/// Dump every table of a plaintext SQLite image (e.g. `factory.db`), first `row_limit` rows each.
+#[wasm_bindgen]
+pub fn sqlite_dump(data: &[u8], row_limit: usize) -> Result<JsValue, JsError> {
+    let tables: Vec<SqliteTable> = dsmc_fw_core::sqlite::dump(data, None, Some(row_limit))
+        .map_err(js_err)?
+        .into_iter()
+        .map(|t| SqliteTable { name: t.name, columns: t.columns, rows: t.rows, total: t.total })
+        .collect();
+    to_js(&tables)
+}
+
+/// Decrypt (or encrypt) a camera or lens `.cfg`.
+#[wasm_bindgen]
+pub fn cfg_crypt(data: &[u8]) -> Vec<u8> {
+    cfg::crypt(data)
 }

@@ -1,5 +1,6 @@
 import { useNavigate } from "@solidjs/router";
 import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
+import { FileBrowser } from "../components/FileBrowser";
 import { ImageViewer, type ViewImage } from "../components/ImageViewer";
 import { Busy, DropFrame, Notice, PageHead, useTask } from "../components/ui";
 import { fmtBytes, readFile, saveBytes, saveZip } from "../download";
@@ -23,7 +24,6 @@ export default function Firmware() {
     return o?.kind === "redone" ? o : null;
   };
   const [out, setOut] = createSignal<FwExtract | null>(null);
-  const [filter, setFilter] = createSignal("");
   // Bumped on every open; results from an older open are dropped.
   let generation = 0;
 
@@ -63,13 +63,7 @@ export default function Firmware() {
     onCleanup(() => list.forEach((i) => URL.revokeObjectURL(i.url)));
     return list;
   });
-  const imageIndex = createMemo(() => new Map(images().map((img, i) => [img.file, i])));
   const [viewing, setViewing] = createSignal<number | null>(null);
-  const shown = createMemo(() => {
-    const q = filter().toLowerCase();
-    const files = out()?.files ?? [];
-    return q ? files.filter((f) => f.rel_path.toLowerCase().includes(q) || f.file_type.includes(q)) : files;
-  });
   const base = () => (pkg()?.name ?? "firmware").replace(/\.bin$/i, "");
 
   function saveAll() {
@@ -221,72 +215,19 @@ export default function Firmware() {
                 </tbody>
               </table>
             </div>
-            <input
-              type="search"
-              placeholder="Filter by path or type, e.g. preset, lut, factory.db"
-              value={filter()}
-              onInput={(e) => setFilter(e.currentTarget.value)}
-              aria-label="Filter files"
+            <FileBrowser
+              files={x().files}
+              images={images()}
+              zipName={`${base()}_${hex(x().camera_type)}`}
+              onViewImage={(path) => {
+                const i = images().findIndex((img) => img.name === path);
+                if (i >= 0) setViewing(i);
+              }}
+              onOpenPreset={(f) => {
+                setHandoffPreset({ name: f.rel_path.split("/").pop()!, data: f.data });
+                nav("/presets");
+              }}
             />
-            <div class="table-wrap scroll-y">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Path</th>
-                    <th>Type</th>
-                    <th class="num">Size</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  <For each={shown()}>
-                    {(f) => (
-                      <tr>
-                        <td class="path">
-                          <Show when={imageIndex().has(f)}>
-                            <button class="thumb" onClick={() => setViewing(imageIndex().get(f)!)} title="View image">
-                              <img src={images()[imageIndex().get(f)!].url} alt="" loading="lazy" />
-                            </button>
-                          </Show>
-                          {f.rel_path}
-                          <Show when={!f.size_ok}>
-                            {" "}
-                            <span class="pill warn" title={`Pack says ${f.ulen} bytes`}>
-                              size differs
-                            </span>
-                          </Show>
-                        </td>
-                        <td class="small">{f.file_type}</td>
-                        <td class="num">{fmtBytes(f.data.length)}</td>
-                        <td class="num">
-                          <div class="row" style={{ "justify-content": "flex-end", "flex-wrap": "nowrap" }}>
-                            <Show when={f.file_type === "preset"}>
-                              <button
-                                class="btn small"
-                                onClick={() => {
-                                  setHandoffPreset({ name: f.rel_path.split("/").pop()!, data: f.data });
-                                  nav("/presets");
-                                }}
-                              >
-                                Open
-                              </button>
-                            </Show>
-                            <Show when={imageIndex().has(f)}>
-                              <button class="btn small" onClick={() => setViewing(imageIndex().get(f)!)}>
-                                View
-                              </button>
-                            </Show>
-                            <button class="btn small" onClick={() => saveBytes(f.rel_path.split("/").pop()!, f.data)}>
-                              Download
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </For>
-                </tbody>
-              </table>
-            </div>
           </section>
         )}
       </Show>

@@ -20,6 +20,16 @@ test("preset build/read round-trips", () => {
   assert.deepEqual(p.params, params);
 });
 
+test("cfg_crypt decrypts a camera config and round-trips", () => {
+  const ct = Uint8Array.from(Buffer.from("aed8484c3c6190f9057772fefbe5df82128703bde7924d7c1a63cb79105321d0", "hex"));
+  assert.equal(new TextDecoder().decode(w.cfg_crypt(ct)), "!!S35 Weapon Camera Configuratio");
+  assert.deepEqual(w.cfg_crypt(w.cfg_crypt(ct)), ct);
+});
+
+test("sqlite_dump rejects non-SQLite bytes", () => {
+  assert.throws(() => w.sqlite_dump(new Uint8Array(4096), 10));
+});
+
 test("preset_read rejects garbage", () => {
   assert.throws(() => w.preset_read(new Uint8Array(2048)));
 });

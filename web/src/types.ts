@@ -21,6 +21,8 @@ export interface FwExtract {
   files: FwFile[];
 }
 
+export interface SqliteTable { name: string; columns: string[]; rows: string[][]; total: number }
+
 export interface FpgaOut { bits: Uint8Array; sync_off: number | null; idcode: number | null; part: string }
 export interface RedoneOut { kind: "payload" | "signature"; member: string; out_name: string; data: Uint8Array }
 

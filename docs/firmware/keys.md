@@ -168,6 +168,28 @@ a missing or mismatched value is only logged, never enforced. The full
 enumeration handshake and what is and isn't checked are in
 [accessory-bus.md](../hardware-fw/accessory-bus.md).
 
+## 6. The config-file key (RC4) — published, verified
+
+```
+key (32 bytes, VA 0x80f5ee2c):
+d4 29 dc 22 5e 18 35 3d 08 49 35 c5 09 78 87 3e
+dc 9d f0 20 8a 08 57 11 d0 62 01 da aa e5 f6 23
+```
+
+The camera config (`cfg/CAMERA_CONFIG.cfg`) and the lens tables
+(`lens/*_lens_list.cfg`, `lens/<mount>/*.cfg`) are plain `#KEY,value` text under
+RC4 with this one key and no IV, so every file starts from the same keystream.
+The firmware's config reader (called from `parseSystemConfigFile` at
+`0x80071b10`) runs `rc4_setup(state, 32, 0x80f5ee2c)` and decrypts the whole file
+in place. RC4 is symmetric: the same call encrypts an edited file.
+
+An earlier write-up recovered the keystream from guessed plaintext instead. That
+keystream was wrong at about 11,000 of its 16,607 bytes; it still produced
+printable text, which is why the errors went unnoticed. Use the key.
+
+Decrypt with `dsmc-fw-core cfg <file.cfg> [--out FILE]`, or open the package in
+the web Workbench, which shows config files decrypted.
+
 ## What is actually encrypted, and with what
 
 A map of the whole platform, from reading the crypto call sites:
@@ -178,6 +200,7 @@ A map of the whole platform, from reading the crypto call sites:
 | firmware package (signature) | RSA-PSS, RED's private key | verify only; cannot forge |
 | installed OS image on NAND | **nothing** on the boot path | **yes** — bootloader does not check it |
 | presets | AES-256, universal key | **yes** — key above |
+| camera and lens config (`.cfg`) | RC4, one fixed key, no IV | **yes** — key above |
 | settings DB / environment / calibration | checksums/MD5, not signatures | integrity only, trivially matched |
 | media (MINI-MAG) | model whitelist + MD5 SMART signature | **yes** — see the media folder |
 | accessory modules (bus) | base64 descriptor + MD5 1-Wire signature | **yes** — not gating; see [accessory-bus.md](../hardware-fw/accessory-bus.md) |
