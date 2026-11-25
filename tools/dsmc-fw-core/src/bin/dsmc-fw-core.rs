@@ -712,9 +712,6 @@ mod sha256 {
 }
 
 
-// db — inspect an extracted SQLite database (factory.db / user.db). With no
-// table, list tables + row counts. With a table, dump its rows; --grep filters
-// rows containing the string. Read-only; a generic reader for the camera config.
 fn cmd_overlay(args: &[String]) -> Result<(), String> {
     let path = args.first().ok_or("overlay: missing <file.overlay>")?;
     let o = overlay::read(&std::fs::read(path).map_err(|e| format!("read {path}: {e}"))?)?;
@@ -755,6 +752,10 @@ fn cmd_cfg(args: &[String]) -> Result<(), String> {
     }
 }
 
+// db — inspect an extracted SQLite database (factory.db / user.db, or a
+// RED-encrypted .preset / .overlay). With no
+// table, list tables + row counts. With a table, dump its rows; --grep filters
+// rows containing the string. Read-only; a generic reader for the camera config.
 fn cmd_db(args: &[String]) -> Result<(), String> {
     let path = args.first().ok_or("db: missing <file.db>")?;
     let mut table: Option<&str> = None;

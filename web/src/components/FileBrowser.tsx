@@ -63,7 +63,8 @@ export function FileBrowser(props: {
   const [filter, setFilter] = createSignal("");
   const [selected, setSelected] = createSignal<string | null>(null);
   const [expanded, setExpanded] = createSignal<string[]>([]);
-  const [anchor, setAnchor] = createSignal<string | null>(null);
+  // Not deduplicated, so following the same anchor link again re-scrolls.
+  const [anchor, setAnchor] = createSignal<string | null>(null, { equals: false });
 
   const all = createMemo(() => buildTree(props.files));
   const byId = createMemo(() => {
@@ -139,18 +140,19 @@ export function FileBrowser(props: {
           {(n) => (
             <Show
               when={n().file}
+              keyed
               fallback={
                 <FolderDetail node={n()} zipName={props.zipName} onPick={(id) => (setAnchor(null), reveal(id))} />
               }
             >
               {(f) => (
                 <FileDetail
-                  file={f()}
+                  file={f}
                   imageUrl={imageUrl()}
                   anchor={anchor()}
                   onViewImage={props.onViewImage}
                   onOpenPreset={props.onOpenPreset}
-                  onWikiLink={(page, hash) => openWikiLink(f().rel_path, page, hash)}
+                  onWikiLink={(page, hash) => openWikiLink(f.rel_path, page, hash)}
                 />
               )}
             </Show>
