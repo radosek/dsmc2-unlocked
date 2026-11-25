@@ -31,7 +31,7 @@ unblocks RCP params, presets, and the record/playback data path in one shot — 
 A reusable `Dsmc2Camera.call_function` (AAPCS direct-call primitive) exists to invoke FW routines
 from a reached boot state — useful for driving/verifying the above.
 
-## The hard frontier (the real difficulty, per collaborator Daniel)
+## The hard frontier (the real difficulty, from collaborator feedback)
 Getting raw image data INTO and BETWEEN the ASICs: compression + SATA medium via IOB/FPGA. DSMC has
 SEPARATE PRIVATE DDR per chip (IOB / ISP / FPGA each own memory), unlike a homogeneous-SoC QEMU where
 one shared memory makes image injection trivial. There is no shortcut — this is the wall behind the
@@ -48,7 +48,7 @@ space, not just referenced regs) via the `xaui` shell command and feed the real 
    once (1) lands; then record/playback).
 3. The ASIC data path (the hard frontier) — IOB/ISP co-sim or a faithful FPGA/DMA data model.
 
-## Collaborator (Daniel) tips — 2026-11-24
+## Collaborator tips — 2026-11-24
 
 **1. Trace probe (emulator → real HW).** The emulator can emit an event at a list of addresses when code
 flow passes through them. To do the same on real hardware, inject at each trace address either a jump or a
