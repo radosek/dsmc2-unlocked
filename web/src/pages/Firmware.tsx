@@ -1,10 +1,12 @@
 import { useNavigate } from "@solidjs/router";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
+import { FileBrowser } from "../components/FileBrowser";
+import { ImageViewer, type ViewImage } from "../components/ImageViewer";
 import { Busy, DropFrame, Notice, PageHead, useTask } from "../components/ui";
 import { fmtBytes, readFile, saveBytes, saveZip } from "../download";
 import { setHandoffPreset } from "../state";
 import { tools, type FwOpened } from "../tools";
-import { cameraName, hex, type FpgaOut, type FwExtract, type FwInfo, type RedoneOut } from "../types";
+import { cameraName, hex, type FpgaOut, type FwExtract, type FwFile, type FwInfo, type RedoneOut } from "../types";
 
 const SECTION_KIND: Record<number, string> = { 2: "Header data", 3: "Bootloader", 4: "File pack" };
 
@@ -22,7 +24,6 @@ export default function Firmware() {
     return o?.kind === "redone" ? o : null;
   };
   const [out, setOut] = createSignal<FwExtract | null>(null);
-  const [filter, setFilter] = createSignal("");
   // Bumped on every open; results from an older open are dropped.
   let generation = 0;
 
@@ -54,11 +55,15 @@ export default function Firmware() {
     for (const f of out()?.files ?? []) counts.set(f.file_type, (counts.get(f.file_type) ?? 0) + 1);
     return [...counts].sort((a, b) => b[1] - a[1]);
   });
-  const shown = createMemo(() => {
-    const q = filter().toLowerCase();
-    const files = out()?.files ?? [];
-    return q ? files.filter((f) => f.rel_path.toLowerCase().includes(q) || f.file_type.includes(q)) : files;
+  const images = createMemo(() => {
+    const list: (ViewImage & { file: FwFile })[] = [];
+    for (const f of out()?.files ?? [])
+      if (f.file_type === "png")
+        list.push({ file: f, name: f.rel_path, data: f.data, url: URL.createObjectURL(new Blob([f.data as BlobPart], { type: "image/png" })) });
+    onCleanup(() => list.forEach((i) => URL.revokeObjectURL(i.url)));
+    return list;
   });
+  const [viewing, setViewing] = createSignal<number | null>(null);
   const base = () => (pkg()?.name ?? "firmware").replace(/\.bin$/i, "");
 
   function saveAll() {
@@ -178,6 +183,11 @@ export default function Firmware() {
                     </button>
                   )}
                 </Show>
+                <Show when={images().length}>
+                  <button class="btn" onClick={() => setViewing(0)}>
+                    View {images().length} images
+                  </button>
+                </Show>
                 <button class="btn primary" onClick={saveAll}>
                   Download all as zip
                 </button>
@@ -205,65 +215,24 @@ export default function Firmware() {
                 </tbody>
               </table>
             </div>
-            <input
-              type="search"
-              placeholder="Filter by path or type, e.g. preset, lut, factory.db"
-              value={filter()}
-              onInput={(e) => setFilter(e.currentTarget.value)}
-              aria-label="Filter files"
+            <FileBrowser
+              files={x().files}
+              images={images()}
+              zipName={`${base()}_${hex(x().camera_type)}`}
+              onViewImage={(path) => {
+                const i = images().findIndex((img) => img.name === path);
+                if (i >= 0) setViewing(i);
+              }}
+              onOpenPreset={(f) => {
+                setHandoffPreset({ name: f.rel_path.split("/").pop()!, data: f.data });
+                nav("/presets");
+              }}
             />
-            <div class="table-wrap scroll-y">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Path</th>
-                    <th>Type</th>
-                    <th class="num">Size</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  <For each={shown()}>
-                    {(f) => (
-                      <tr>
-                        <td class="path">
-                          {f.rel_path}
-                          <Show when={!f.size_ok}>
-                            {" "}
-                            <span class="pill warn" title={`Pack says ${f.ulen} bytes`}>
-                              size differs
-                            </span>
-                          </Show>
-                        </td>
-                        <td class="small">{f.file_type}</td>
-                        <td class="num">{fmtBytes(f.data.length)}</td>
-                        <td class="num">
-                          <div class="row" style={{ "justify-content": "flex-end", "flex-wrap": "nowrap" }}>
-                            <Show when={f.file_type === "preset"}>
-                              <button
-                                class="btn small"
-                                onClick={() => {
-                                  setHandoffPreset({ name: f.rel_path.split("/").pop()!, data: f.data });
-                                  nav("/presets");
-                                }}
-                              >
-                                Open
-                              </button>
-                            </Show>
-                            <button class="btn small" onClick={() => saveBytes(f.rel_path.split("/").pop()!, f.data)}>
-                              Download
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </For>
-                </tbody>
-              </table>
-            </div>
           </section>
         )}
       </Show>
+
+      <ImageViewer images={images()} index={viewing()} onIndex={setViewing} />
 
       <FpgaImage />
     </div>
@@ -287,7 +256,7 @@ function FpgaImage() {
     <section class="section">
       <header>
         <h2>LSB-FPGA image</h2>
-        <p>Turn the LSB-FPGA image from an extracted package into a standard Xilinx bitstream you can open in Vivado.</p>
+        <p>Decode the LSB-FPGA image from an extracted package into its raw Kintex-7 configuration bitstream and identify the exact FPGA part. A bitstream is compiled configuration, not a design: Vivado can program it into a chip but cannot turn it back into editable logic.</p>
       </header>
       <DropFrame compact title="Drop an LSB-FPGA image" hint="From the fpga folder of an extracted package" file={file()} onFile={open} />
       <Show when={t.busy()}>

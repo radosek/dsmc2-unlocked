@@ -18,8 +18,8 @@ package.
   material is needed. Verified by unpacking Epic Dragon 6.3.106 with the
   repository's own [unpacker](../../tools/fw-crypto). See [keys.md](../firmware/keys.md).
 - **Config-file cipher.** The `.cfg` files (camera config, lens tables) use the
-  same reused-keystream stream cipher, so the same recovered keystream reads DSMC1
-  configs too. See [feature-unlock.md](../features/feature-unlock.md).
+  same fixed-key RC4 as DSMC2, so the same key reads DSMC1 configs too. See
+  [keys.md](../firmware/keys.md#6-the-config-file-key-rc4--published-verified).
 - **Main processor.** TI OMAP-class ARM running `dsmc_program.mem`, same as DSMC2.
 - **ISP and IOB run Xtensa code, loaded from NAND.** DSMC1's `CAMERA_CONFIG.cfg`
   names the loader paths `TENSILICA_ISP_BIN_PATH` and

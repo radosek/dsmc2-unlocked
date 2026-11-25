@@ -112,7 +112,8 @@ fn find_idcode(bits: &[u8]) -> Option<u32> {
     Some(u32::from_be_bytes([v[0], v[1], v[2], v[3]]))
 }
 
-/// Decode a `wlsbfpga.N.bin` container into a standard Xilinx bitstream.
+/// Decode a `wlsbfpga.N.bin` container into a standard Xilinx configuration
+/// bitstream (compiled config for part identification, not editable logic).
 ///
 /// `buf` is the whole on-disk file. Returns the deinterleaved `.bit` plus the
 /// sync offset and IDCODE found in it.

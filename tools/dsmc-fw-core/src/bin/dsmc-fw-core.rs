@@ -20,7 +20,7 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use dsmc_fw_core::{fpga, package, preset, recovery, redone};
+use dsmc_fw_core::{cfg, fpga, overlay, package, preset, recovery, redone, sqlite};
 
 /// (tagged pages, header chunks) loaded from a NAND dump, fed to list_objects.
 type NandDump = (Vec<(u64, recovery::SpareTag)>, Vec<recovery::HeaderChunk>);
@@ -39,6 +39,8 @@ USAGE:
   dsmc-fw-core recovery list --raw <FILE> [--stride N]
   dsmc-fw-core recovery recv                           (how to capture a NAND dump)
   dsmc-fw-core db <file.db> [table] [--grep S]          (inspect an extracted SQLite db)
+  dsmc-fw-core overlay <file.overlay>                   (list a monitor overlay's guides and items)
+  dsmc-fw-core cfg <file.cfg> [--out FILE]              (decrypt/encrypt a camera or lens .cfg; stdout by default)
   dsmc-fw-core redone unpack <redone.su> [--out DIR]
 
 unpack:
@@ -70,6 +72,8 @@ fn run(args: &[String]) -> Result<(), String> {
         Some("recovery") => cmd_recovery(&args[1..]),
         Some("redone") => cmd_redone(&args[1..]),
         Some("db") => cmd_db(&args[1..]),
+        Some("cfg") => cmd_cfg(&args[1..]),
+        Some("overlay") => cmd_overlay(&args[1..]),
         Some("-h") | Some("--help") | None => {
             println!("{USAGE}");
             Ok(())
@@ -708,11 +712,51 @@ mod sha256 {
 }
 
 
-// db — inspect an extracted SQLite database (factory.db / user.db). With no
+fn cmd_overlay(args: &[String]) -> Result<(), String> {
+    let path = args.first().ok_or("overlay: missing <file.overlay>")?;
+    let o = overlay::read(&std::fs::read(path).map_err(|e| format!("read {path}: {e}"))?)?;
+    let yn = |b: bool| if b { "on" } else { "off" };
+    println!(
+        "guides: frame {}, action {}, title {}",
+        yn(o.frame_guide),
+        yn(o.action_guide),
+        yn(o.title_guide)
+    );
+    for i in &o.items {
+        let zone = overlay::ZONES.get(i.pos as usize).copied().unwrap_or("?");
+        let size = overlay::SIZES.get(i.size as usize).copied().unwrap_or("?");
+        let name = i.name.map_or_else(|| format!("unknown item {}", i.id), str::to_string);
+        let text = if i.text.is_empty() { String::new() } else { format!("  \"{}\"", i.text) };
+        println!("{zone:<13} line {}  {size:<6}  {name}{text}", i.line);
+    }
+    Ok(())
+}
+
+fn cmd_cfg(args: &[String]) -> Result<(), String> {
+    let (mut input, mut out) = (None, None);
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--out" => out = Some(it.next().ok_or("--out needs a file")?),
+            f => input = Some(f),
+        }
+    }
+    let input = input.ok_or("cfg: missing <file.cfg>")?;
+    let data = cfg::crypt(&std::fs::read(input).map_err(|e| format!("read {input}: {e}"))?);
+    match out {
+        Some(o) => std::fs::write(o, &data).map_err(|e| format!("write {o}: {e}")),
+        None => {
+            use std::io::Write;
+            std::io::stdout().write_all(&data).map_err(|e| e.to_string())
+        }
+    }
+}
+
+// db — inspect an extracted SQLite database (factory.db / user.db, or a
+// RED-encrypted .preset / .overlay). With no
 // table, list tables + row counts. With a table, dump its rows; --grep filters
 // rows containing the string. Read-only; a generic reader for the camera config.
 fn cmd_db(args: &[String]) -> Result<(), String> {
-    use rusqlite::Connection;
     let path = args.first().ok_or("db: missing <file.db>")?;
     let mut table: Option<&str> = None;
     let mut grep: Option<&str> = None;
@@ -729,55 +773,21 @@ fn cmd_db(args: &[String]) -> Result<(), String> {
             }
         }
     }
-    let conn = Connection::open_with_flags(
-        path,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .map_err(|e| format!("open {path}: {e}"))?;
-
+    let bytes = std::fs::read(path).map_err(|e| format!("read {path}: {e}"))?;
     match table {
         None => {
-            // list tables + counts
-            let mut st = conn
-                .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-                .map_err(|e| e.to_string())?;
-            let names: Vec<String> = st
-                .query_map([], |r| r.get::<_, String>(0))
-                .map_err(|e| e.to_string())?
-                .filter_map(Result::ok)
-                .collect();
-            for name in &names {
-                let n: i64 = conn
-                    .query_row(&format!("SELECT COUNT(*) FROM \"{name}\""), [], |r| r.get(0))
-                    .unwrap_or(-1);
-                println!("{name:<24} {n} rows");
+            for t in sqlite::dump(&bytes, None, Some(0))? {
+                println!("{:<24} {} rows", t.name, t.total);
             }
         }
         Some(t) => {
-            // dump the table; print all columns tab-separated.
-            let sql = format!("SELECT * FROM \"{t}\"");
-            let mut st = conn.prepare(&sql).map_err(|e| format!("{t}: {e}"))?;
-            let ncol = st.column_count();
-            let cols: Vec<String> = st.column_names().map(|c| c.to_string()).collect();
-            println!("# {}", cols.join("\t"));
-            let rows = st
-                .query_map([], |r| {
-                    let mut vals = Vec::with_capacity(ncol);
-                    for c in 0..ncol {
-                        // read each cell as text (NULL -> empty)
-                        let v: Option<String> = r.get::<_, Option<String>>(c).unwrap_or(None);
-                        vals.push(v.unwrap_or_default());
-                    }
-                    Ok(vals)
-                })
-                .map_err(|e| e.to_string())?;
+            let t = sqlite::dump(&bytes, Some(t), None)?.remove(0);
+            println!("# {}", t.columns.join("\t"));
             let mut shown = 0usize;
-            for row in rows.filter_map(Result::ok) {
+            for row in t.rows {
                 let line = row.join("\t");
-                if let Some(g) = grep {
-                    if !line.contains(g) {
-                        continue;
-                    }
+                if grep.is_some_and(|g| !line.contains(g)) {
+                    continue;
                 }
                 println!("{line}");
                 shown += 1;

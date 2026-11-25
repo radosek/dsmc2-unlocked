@@ -10,7 +10,7 @@ on a desktop; everything else works in any modern browser.
 | Page | What it does | Backed by |
 |---|---|---|
 | Logs | Decode `log.data`, split boot sessions, rank faults, look up error codes | `dsmc_core::log`, `error_dict` |
-| Firmware | Open a RED download (zip, DSMC `.bin`, or RED ONE `redone.su`), list combo models, extract files; LSB-FPGA → `.bit` | `dsmc_fw_core::{package, redone, fpga}` |
+| Firmware | Open a RED download (zip, DSMC `.bin`, or RED ONE `redone.su`), list combo models, browse the extracted files as a tree with previews (images, rendered help pages, decrypted `.cfg`, overlay layout schematics, `factory.db` tables, preset settings, hex), download a folder as zip; LSB-FPGA → `.bit` | `dsmc_fw_core::{package, redone, fpga, cfg, overlay, sqlite, preset}` |
 | Presets | Read, edit and build `.preset` files (incl. the debug-shell preset) | `dsmc_fw_core::preset` |
 | Camera | Self-test, readings and a terminal over the CTRL port; check or compare saved captures | `dsmc_core::{capture, baseline, parse}` |
 

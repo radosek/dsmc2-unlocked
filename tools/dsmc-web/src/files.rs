@@ -2,7 +2,7 @@
 
 use dsmc_core::error_dict::ErrorDictionary;
 use dsmc_core::log::{self, Patterns, Triage};
-use dsmc_fw_core::{filetype, fpga, package, preset, redone};
+use dsmc_fw_core::{cfg, filetype, overlay, fpga, package, preset, redone};
 use serde::Serialize;
 use serde_bytes::ByteBuf;
 use wasm_bindgen::prelude::*;
@@ -246,4 +246,64 @@ pub fn preset_build(version: i32, params: JsValue) -> Result<Vec<u8>, JsError> {
         n
     })
     .map_err(js_err)
+}
+
+#[derive(Serialize)]
+struct SqliteTable {
+    name: String,
+    columns: Vec<String>,
+    rows: Vec<Vec<String>>,
+    total: u64,
+}
+
+/// Dump every table of a plaintext SQLite image (e.g. `factory.db`), first `row_limit` rows each.
+#[wasm_bindgen]
+pub fn sqlite_dump(data: &[u8], row_limit: usize) -> Result<JsValue, JsError> {
+    let tables: Vec<SqliteTable> = dsmc_fw_core::sqlite::dump(data, None, Some(row_limit))
+        .map_err(js_err)?
+        .into_iter()
+        .map(|t| SqliteTable { name: t.name, columns: t.columns, rows: t.rows, total: t.total })
+        .collect();
+    to_js(&tables)
+}
+
+/// Decrypt (or encrypt) a camera or lens `.cfg`.
+#[wasm_bindgen]
+pub fn cfg_crypt(data: &[u8]) -> Vec<u8> {
+    cfg::crypt(data)
+}
+
+#[derive(Serialize)]
+struct OverlayItem {
+    id: u32,
+    name: Option<&'static str>,
+    pos: u32,
+    line: u32,
+    col: u32,
+    size: u32,
+    text: String,
+}
+
+#[derive(Serialize)]
+struct OverlayOut {
+    frame_guide: bool,
+    action_guide: bool,
+    title_guide: bool,
+    items: Vec<OverlayItem>,
+}
+
+/// Read a monitor `.overlay`: guide flags and the placed items.
+#[wasm_bindgen]
+pub fn overlay_read(data: &[u8]) -> Result<JsValue, JsError> {
+    let o = overlay::read(data).map_err(js_err)?;
+    to_js(&OverlayOut {
+        frame_guide: o.frame_guide,
+        action_guide: o.action_guide,
+        title_guide: o.title_guide,
+        items: o
+            .items
+            .into_iter()
+            .map(|i| OverlayItem { id: i.id, name: i.name, pos: i.pos, line: i.line, col: i.col, size: i.size, text: i.text })
+            .collect(),
+    })
 }

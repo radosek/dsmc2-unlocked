@@ -59,6 +59,9 @@ pub fn file_type(name: &str, data: &[u8]) -> &'static str {
     if n.ends_with(".preset") {
         return "preset";
     }
+    if n.ends_with(".wiki") {
+        return "help-page";
+    }
     if n.ends_with(".cfg") {
         return "config";
     }
@@ -85,6 +88,7 @@ mod tests {
         assert_eq!(file_type("x", &[0x1f, 0x8b, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), "gzip");
         assert_eq!(file_type("x", b"\x7fELF____________"), "elf");
         assert_eq!(file_type("x", b"\x89PNG____________"), "png");
+        assert_eq!(file_type("doc/RedUiWBDialog.wiki", b"(:title White Balance:)"), "help-page");
     }
 
     #[test]

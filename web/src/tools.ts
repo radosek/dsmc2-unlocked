@@ -1,6 +1,6 @@
 import * as Comlink from "comlink";
 import type { WorkerApi } from "./worker";
-import type { Explain, FpgaOut, FwExtract, FwInfo, LogReport, Preset, RedoneOut } from "./types";
+import type { Explain, FpgaOut, FwExtract, FwInfo, LogReport, Preset, RedoneOut, OverlayOut, SqliteTable } from "./types";
 
 let worker: Worker | null = null;
 let remote: Comlink.Remote<WorkerApi> | null = null;
@@ -44,5 +44,8 @@ export const tools = {
   fpgaUnpack: (d: Uint8Array) => call<FpgaOut>((a) => a.fpgaUnpack(d)),
   redoneUnpack: (d: Uint8Array) => call<RedoneOut[]>((a) => a.redoneUnpack(d)),
   presetRead: (d: Uint8Array) => call<Preset>((a) => a.presetRead(d)),
+  overlayRead: (d: Uint8Array) => call<OverlayOut>((a) => a.overlayRead(d)),
+  cfgCrypt: (d: Uint8Array) => call<Uint8Array>((a) => a.cfgCrypt(d)),
+  sqliteDump: (d: Uint8Array, rowLimit: number) => call<SqliteTable[]>((a) => a.sqliteDump(d, rowLimit)),
   presetBuild: (v: number, p: [string, string][]) => call<Uint8Array>((a) => a.presetBuild(v, p)),
 };

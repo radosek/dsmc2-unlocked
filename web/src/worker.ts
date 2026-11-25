@@ -48,6 +48,19 @@ const api = {
     await ready;
     return w.preset_read(data);
   },
+  async overlayRead(data: Uint8Array) {
+    await ready;
+    return w.overlay_read(data);
+  },
+  async cfgCrypt(data: Uint8Array) {
+    await ready;
+    const out = w.cfg_crypt(data);
+    return Comlink.transfer(out, [out.buffer]);
+  },
+  async sqliteDump(data: Uint8Array, rowLimit: number) {
+    await ready;
+    return w.sqlite_dump(data, rowLimit);
+  },
   async presetBuild(version: number, params: [string, string][]) {
     await ready;
     const out = w.preset_build(version, params);
