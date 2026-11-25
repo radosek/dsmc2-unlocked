@@ -256,7 +256,7 @@ function FpgaImage() {
     <section class="section">
       <header>
         <h2>LSB-FPGA image</h2>
-        <p>Decode the LSB-FPGA image from an extracted package into its raw Kintex-7 configuration bitstream and identify the exact FPGA part. A bitstream is compiled configuration, not a design: Vivado can program it into a chip but cannot turn it back into editable logic.</p>
+        <p>Decode the LSB-FPGA image into its raw Kintex-7 bitstream and identify the exact FPGA part.</p>
       </header>
       <DropFrame compact title="Drop an LSB-FPGA image" hint="From the fpga folder of an extracted package" file={file()} onFile={open} />
       <Show when={t.busy()}>
