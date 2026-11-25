@@ -32,7 +32,7 @@ pub fn plaintext(db: &[u8]) -> Result<Cow<'_, [u8]>, String> {
     if db.starts_with(MAGIC) {
         return Ok(Cow::Borrowed(db));
     }
-    if db.len() < 1024 || db.len() % 512 != 0 {
+    if db.len() < 1024 || !db.len().is_multiple_of(512) {
         return Err("not a SQLite database".into());
     }
     let pt = crate::preset::decrypt(db);
