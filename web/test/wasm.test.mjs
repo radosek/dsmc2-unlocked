@@ -26,6 +26,10 @@ test("cfg_crypt decrypts a camera config and round-trips", () => {
   assert.deepEqual(w.cfg_crypt(w.cfg_crypt(ct)), ct);
 });
 
+test("overlay_read rejects a database that is not an overlay", () => {
+  assert.throws(() => w.overlay_read(w.preset_build(7, [["A", "1"]])), /overlay_object/);
+});
+
 test("sqlite_dump rejects non-SQLite bytes", () => {
   assert.throws(() => w.sqlite_dump(new Uint8Array(4096), 10));
 });

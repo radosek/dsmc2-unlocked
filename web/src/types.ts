@@ -21,6 +21,8 @@ export interface FwExtract {
   files: FwFile[];
 }
 
+export interface OverlayItem { id: number; name: string | null; pos: number; line: number; col: number; size: number; text: string }
+export interface OverlayOut { frame_guide: boolean; action_guide: boolean; title_guide: boolean; items: OverlayItem[] }
 export interface SqliteTable { name: string; columns: string[]; rows: string[][]; total: number }
 
 export interface FpgaOut { bits: Uint8Array; sync_off: number | null; idcode: number | null; part: string }

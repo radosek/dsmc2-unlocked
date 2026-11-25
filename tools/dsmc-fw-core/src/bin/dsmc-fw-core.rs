@@ -20,7 +20,7 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use dsmc_fw_core::{cfg, fpga, package, preset, recovery, redone, sqlite};
+use dsmc_fw_core::{cfg, fpga, overlay, package, preset, recovery, redone, sqlite};
 
 /// (tagged pages, header chunks) loaded from a NAND dump, fed to list_objects.
 type NandDump = (Vec<(u64, recovery::SpareTag)>, Vec<recovery::HeaderChunk>);
@@ -39,6 +39,7 @@ USAGE:
   dsmc-fw-core recovery list --raw <FILE> [--stride N]
   dsmc-fw-core recovery recv                           (how to capture a NAND dump)
   dsmc-fw-core db <file.db> [table] [--grep S]          (inspect an extracted SQLite db)
+  dsmc-fw-core overlay <file.overlay>                   (list a monitor overlay's guides and items)
   dsmc-fw-core cfg <file.cfg> [--out FILE]              (decrypt/encrypt a camera or lens .cfg; stdout by default)
   dsmc-fw-core redone unpack <redone.su> [--out DIR]
 
@@ -72,6 +73,7 @@ fn run(args: &[String]) -> Result<(), String> {
         Some("redone") => cmd_redone(&args[1..]),
         Some("db") => cmd_db(&args[1..]),
         Some("cfg") => cmd_cfg(&args[1..]),
+        Some("overlay") => cmd_overlay(&args[1..]),
         Some("-h") | Some("--help") | None => {
             println!("{USAGE}");
             Ok(())
@@ -713,6 +715,26 @@ mod sha256 {
 // db — inspect an extracted SQLite database (factory.db / user.db). With no
 // table, list tables + row counts. With a table, dump its rows; --grep filters
 // rows containing the string. Read-only; a generic reader for the camera config.
+fn cmd_overlay(args: &[String]) -> Result<(), String> {
+    let path = args.first().ok_or("overlay: missing <file.overlay>")?;
+    let o = overlay::read(&std::fs::read(path).map_err(|e| format!("read {path}: {e}"))?)?;
+    let yn = |b: bool| if b { "on" } else { "off" };
+    println!(
+        "guides: frame {}, action {}, title {}",
+        yn(o.frame_guide),
+        yn(o.action_guide),
+        yn(o.title_guide)
+    );
+    for i in &o.items {
+        let zone = overlay::ZONES.get(i.pos as usize).copied().unwrap_or("?");
+        let size = overlay::SIZES.get(i.size as usize).copied().unwrap_or("?");
+        let name = i.name.map_or_else(|| format!("unknown item {}", i.id), str::to_string);
+        let text = if i.text.is_empty() { String::new() } else { format!("  \"{}\"", i.text) };
+        println!("{zone:<13} line {}  {size:<6}  {name}{text}", i.line);
+    }
+    Ok(())
+}
+
 fn cmd_cfg(args: &[String]) -> Result<(), String> {
     let (mut input, mut out) = (None, None);
     let mut it = args.iter();

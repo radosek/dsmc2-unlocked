@@ -4,6 +4,7 @@ import { fmtBytes, saveBytes, saveZip } from "../download";
 import { tools } from "../tools";
 import type { FwFile } from "../types";
 import { decodeText, renderWiki } from "../wiki";
+import { OverlayPreview } from "./OverlayPreview";
 
 interface Node {
   id: string;
@@ -205,6 +206,8 @@ function Icon(props: { kind: string }) {
     switch (props.kind) {
       case "folder":
         return "M1.5 3.5h5l1.5 1.5h6.5v8.5h-13z";
+      case "ui-overlay":
+        return "M1.5 3h13v10h-13zM3 4.5h3M10 4.5h3M3 11.5h3M10 11.5h3";
       case "png":
         return "M2 2.5h12v11H2zM2 11l3.5-3.5 3 3 2-2 3.5 3.5";
       case "help-page":
@@ -265,7 +268,7 @@ function FolderDetail(props: { node: Node; zipName: string; onPick: (id: string)
   );
 }
 
-type Kind = "image" | "wiki" | "sqlite" | "preset" | "config" | "text" | "binary";
+type Kind = "image" | "wiki" | "sqlite" | "preset" | "config" | "overlay" | "text" | "binary";
 
 function FileDetail(props: {
   file: FwFile;
@@ -291,6 +294,7 @@ function FileDetail(props: {
     if (t === "sqlite-db") return "sqlite";
     if (t === "preset") return "preset";
     if (t === "config") return "config";
+    if (t === "ui-overlay") return "overlay";
     if (text() === null) return "binary";
     return /\.wiki$/i.test(props.file.rel_path) ? "wiki" : "text";
   });
@@ -298,6 +302,10 @@ function FileDetail(props: {
   const [tables] = createResource(
     () => kind() === "sqlite" && props.file,
     (f) => tools.sqliteDump(f.data, 500),
+  );
+  const [overlay] = createResource(
+    () => kind() === "overlay" && props.file,
+    (f) => tools.overlayRead(f.data),
   );
   const [preset] = createResource(
     () => kind() === "preset" && props.file,
@@ -440,6 +448,11 @@ function FileDetail(props: {
                   </details>
                 )}
               </For>
+            </Show>
+          </Match>
+          <Match when={kind() === "overlay"}>
+            <Show when={!overlay.error} fallback={<p class="notice warn">{String(overlay.error?.message ?? overlay.error)}</p>}>
+              <Show when={overlay()}>{(o) => <OverlayPreview overlay={o()} />}</Show>
             </Show>
           </Match>
           <Match when={kind() === "preset"}>

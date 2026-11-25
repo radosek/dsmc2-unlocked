@@ -471,3 +471,27 @@ tr.clickable { cursor: pointer; }
   .browser-tree { border-right: 0; border-bottom: 1px solid var(--line); }
   .browser-detail { min-height: 400px; }
 }
+
+/* ---- overlay schematic -------------------------------------------------- */
+
+.ov { display: grid; gap: 12px; }
+.ov-screen {
+  position: relative; aspect-ratio: 16 / 9; border-radius: var(--r-sm); overflow: hidden;
+  background: linear-gradient(160deg, #2b3138, #14171a); color: #f2f2f2;
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr 1fr; padding: 2.5%;
+  font: 600 clamp(9px, 1.4vw, 13px) var(--cond); letter-spacing: 0.03em;
+}
+.ov-guide { position: absolute; border: 1px dashed; pointer-events: none; }
+.ov-frame { inset: 0; border-color: rgb(255 255 255 / 0.5); border-style: solid; }
+.ov-action { inset: 5%; border-color: rgb(255 255 255 / 0.35); }
+.ov-title { inset: 10%; border-color: rgb(255 220 80 / 0.45); }
+.ov-zone { display: flex; flex-direction: column; gap: 3px; z-index: 1; }
+.ov-zone-0, .ov-zone-3 { align-items: flex-start; }
+.ov-zone-1, .ov-zone-4 { align-items: center; }
+.ov-zone-2, .ov-zone-5 { align-items: flex-end; }
+.ov-zone-3, .ov-zone-4, .ov-zone-5 { justify-content: flex-end; }
+.ov-line { display: flex; gap: 4px; }
+.ov-item { background: rgb(0 0 0 / 0.55); padding: 1px 5px; border-radius: 2px; white-space: nowrap; cursor: default; }
+.ov-size-0 { font-size: 0.85em; }
+.ov-size-2 { font-size: 1.25em; }
+.tree-icon.ui-overlay { color: var(--warn); }

@@ -23,6 +23,7 @@
 
 pub mod cfg;
 pub mod fpga;
+pub mod overlay;
 pub mod package;
 pub mod preset;
 pub mod rc4;

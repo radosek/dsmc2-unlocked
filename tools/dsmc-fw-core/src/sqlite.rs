@@ -1,6 +1,8 @@
 //! Read-only dump of a SQLite image (e.g. `cdb2/factory.db` from an extracted
 //! package): every table with its columns and the first rows, values as text.
 
+use std::borrow::Cow;
+
 use rusqlite::types::ValueRef;
 
 #[derive(Debug)]
@@ -22,12 +24,32 @@ fn text(v: ValueRef<'_>) -> String {
     }
 }
 
-/// Open `db` (plaintext SQLite bytes) and dump each table (or only `only`),
-/// up to `row_limit` rows each (`None` = all rows).
+const MAGIC: &[u8] = b"SQLite format 3\0";
+
+/// The plaintext SQLite image of `db`: as-is when it already is one, else
+/// decrypted with RED's AES page codec (the one `.preset` and `.overlay` use).
+pub fn plaintext(db: &[u8]) -> Result<Cow<'_, [u8]>, String> {
+    if db.starts_with(MAGIC) {
+        return Ok(Cow::Borrowed(db));
+    }
+    if db.len() < 1024 || db.len() % 512 != 0 {
+        return Err("not a SQLite database".into());
+    }
+    let pt = crate::preset::decrypt(db);
+    if pt.starts_with(MAGIC) {
+        Ok(Cow::Owned(pt))
+    } else {
+        Err("not a SQLite database, and not one under RED's preset key".into())
+    }
+}
+
+/// Open `db` (plain or RED-encrypted SQLite) and dump each table (or only
+/// `only`), up to `row_limit` rows each (`None` = all rows).
 pub fn dump(db: &[u8], only: Option<&str>, row_limit: Option<usize>) -> Result<Vec<Table>, String> {
+    let db = plaintext(db)?;
     let e = |e: rusqlite::Error| e.to_string();
     let mut con = rusqlite::Connection::open_in_memory().map_err(e)?;
-    con.deserialize_read_exact(rusqlite::MAIN_DB, db, db.len(), true)
+    con.deserialize_read_exact(rusqlite::MAIN_DB, &*db, db.len(), true)
         .map_err(e)?;
     let names: Vec<String> = con
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
@@ -98,6 +120,15 @@ mod tests {
         let b = dump(&img, Some("b"), None).unwrap();
         assert_eq!((b.len(), b[0].rows.len()), (1, 3));
         assert!(dump(&img, Some("nope"), None).is_err());
+    }
+
+    #[test]
+    fn opens_red_encrypted_db() {
+        let pt = crate::preset::build_plaintext_db(7, &[("A".into(), "1".into())]).unwrap();
+        let ct = crate::preset::encrypt_with(&pt, |p| [p as u8; crate::preset::RV]);
+        assert!(!ct.starts_with(b"SQLite"));
+        let t = dump(&ct, Some("parameters"), None).unwrap();
+        assert_eq!(t[0].rows, [["A", "1"]]);
     }
 
     #[test]
