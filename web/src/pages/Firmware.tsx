@@ -1,10 +1,11 @@
 import { useNavigate } from "@solidjs/router";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, onCleanup, Show } from "solid-js";
+import { ImageViewer, type ViewImage } from "../components/ImageViewer";
 import { Busy, DropFrame, Notice, PageHead, useTask } from "../components/ui";
 import { fmtBytes, readFile, saveBytes, saveZip } from "../download";
 import { setHandoffPreset } from "../state";
 import { tools, type FwOpened } from "../tools";
-import { cameraName, hex, type FpgaOut, type FwExtract, type FwInfo, type RedoneOut } from "../types";
+import { cameraName, hex, type FpgaOut, type FwExtract, type FwFile, type FwInfo, type RedoneOut } from "../types";
 
 const SECTION_KIND: Record<number, string> = { 2: "Header data", 3: "Bootloader", 4: "File pack" };
 
@@ -54,6 +55,16 @@ export default function Firmware() {
     for (const f of out()?.files ?? []) counts.set(f.file_type, (counts.get(f.file_type) ?? 0) + 1);
     return [...counts].sort((a, b) => b[1] - a[1]);
   });
+  const images = createMemo(() => {
+    const list: (ViewImage & { file: FwFile })[] = [];
+    for (const f of out()?.files ?? [])
+      if (f.file_type === "png")
+        list.push({ file: f, name: f.rel_path, data: f.data, url: URL.createObjectURL(new Blob([f.data as BlobPart], { type: "image/png" })) });
+    onCleanup(() => list.forEach((i) => URL.revokeObjectURL(i.url)));
+    return list;
+  });
+  const imageIndex = createMemo(() => new Map(images().map((img, i) => [img.file, i])));
+  const [viewing, setViewing] = createSignal<number | null>(null);
   const shown = createMemo(() => {
     const q = filter().toLowerCase();
     const files = out()?.files ?? [];
@@ -178,6 +189,11 @@ export default function Firmware() {
                     </button>
                   )}
                 </Show>
+                <Show when={images().length}>
+                  <button class="btn" onClick={() => setViewing(0)}>
+                    View {images().length} images
+                  </button>
+                </Show>
                 <button class="btn primary" onClick={saveAll}>
                   Download all as zip
                 </button>
@@ -227,6 +243,11 @@ export default function Firmware() {
                     {(f) => (
                       <tr>
                         <td class="path">
+                          <Show when={imageIndex().has(f)}>
+                            <button class="thumb" onClick={() => setViewing(imageIndex().get(f)!)} title="View image">
+                              <img src={images()[imageIndex().get(f)!].url} alt="" loading="lazy" />
+                            </button>
+                          </Show>
                           {f.rel_path}
                           <Show when={!f.size_ok}>
                             {" "}
@@ -250,6 +271,11 @@ export default function Firmware() {
                                 Open
                               </button>
                             </Show>
+                            <Show when={imageIndex().has(f)}>
+                              <button class="btn small" onClick={() => setViewing(imageIndex().get(f)!)}>
+                                View
+                              </button>
+                            </Show>
                             <button class="btn small" onClick={() => saveBytes(f.rel_path.split("/").pop()!, f.data)}>
                               Download
                             </button>
@@ -264,6 +290,8 @@ export default function Firmware() {
           </section>
         )}
       </Show>
+
+      <ImageViewer images={images()} index={viewing()} onIndex={setViewing} />
 
       <FpgaImage />
     </div>
@@ -287,7 +315,7 @@ function FpgaImage() {
     <section class="section">
       <header>
         <h2>LSB-FPGA image</h2>
-        <p>Turn the LSB-FPGA image from an extracted package into a standard Xilinx bitstream you can open in Vivado.</p>
+        <p>Decode the LSB-FPGA image from an extracted package into its raw Kintex-7 configuration bitstream and identify the exact FPGA part. A bitstream is compiled configuration, not a design: Vivado can program it into a chip but cannot turn it back into editable logic.</p>
       </header>
       <DropFrame compact title="Drop an LSB-FPGA image" hint="From the fpga folder of an extracted package" file={file()} onFile={open} />
       <Show when={t.busy()}>
