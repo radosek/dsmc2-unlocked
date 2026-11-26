@@ -16,20 +16,24 @@ The emulator boots the real DSMC2 7.4.1 app image end-to-end in emulation:
 Fidelity is tracked honestly in `MODEL_FIDELITY_AUDIT.md` / `FIDELITY_MATRIX.md`
 (faithful vs ASSERTED vs synthetic; every assertion flagged).
 
-## The next blocker (pinned, concrete)
-**The synthesized YAFFS2 image mounts but does not register FILE OBJECTS from its block scan.**
-Consequence: files like `/env/PARTITION_TABLE`, and the SQLite CDB2 param DBs (`cdb2/factory.db`,
-`/data/cdb2/user.db`), open as handles but their first statement fails to prepare — so:
-- real RCP param GET/SET returns the firmware's prepare-fail code (rc=0xC) instead of real values
-  (the FW's own `_cdb2_parameter_get_value` @0x80080C34 runs >100x during CSM bring-up and hits this),
-- any path that reads a real on-disk file stops here.
-
-`cdb2_init` @0x8007FB58 (from init_filesystem @0x80008310) IS reached and `sqlite3_open` succeeds;
-the gap is purely the YAFFS2 scan not populating file objects (`devices/nand_image.py`). Closing it
-unblocks RCP params, presets, and the record/playback data path in one shot — it is NOT RCP-specific.
-
-A reusable `Dsmc2Camera.call_function` (AAPCS direct-call primitive) exists to invoke FW routines
-from a reached boot state — useful for driving/verifying the above.
+## Next blocker (resolved for `/image2` CDB2 & Xtensa boot images; remaining: full ASIC data path)
+* **Priority 1 — YAFFS2 `/image2` staging (`emulator/devices/nand_image.py`, `emulator/camera.py`) — CLEARED:**
+  `write_image_partition()` (backed by `build_yaffs_tree_chunks()`, `build_minimal_factory_db_blob()`, and
+  `build_default_xtensa_blobs()`) stages directory + multi-block file objects onto `/image2` (block 605)
+  with block-incrementing `seqNumber` tags, so the real firmware's `yaffs_Scan` registers `/image2/cdb2/factory.db`,
+  `/image2/isp/{dram,iram}.bin`, `/image2/iob0/{dram,iram}.bin`, and `/image2/iob1/{dram,iram}.bin`.
+* **Priority 2 — Real-FW CDB2 SQLite GET/SET/RESET & SATA Media Probe (`emulator/tests/test_rcp_realfw.py`, `emulator/camera.py`) — CLEARED:**
+  With `/image2/cdb2/factory.db` and `/image2/cdb2/presets/cinema.preset` mounted via recursive `build_yaffs_tree_chunks()`, `cdb2_init` (`@0x8007FB58`) compiles all prepared SQLite statements (`DAT_814CD3A0` ATTACH, `DAT_814CD3D8` GET, `DAT_814CD3D4` SET, `DAT_814CD3C4` DELETE != 0), `fw_cdb2_get_uint32` / `fw_cdb2_set_uint32` / `fw_cdb2_reset_param` / `fw_cdb2_reset_to_factory_defaults` / `fw_cdb2_preset_has_param` / `fw_cdb2_apply_preset` execute real SQLite queries/overrides/resets/presets (`rc=0`), and `fw_sata_media_present` + `fw_sata_host_and_port_init` drive stock `red_media_init` (`@0x800A04FC`), `SATA_MediaPresent` (`@0x806A2ACC`), `SATA_HostInit` (`@0x806A14A4`), and `SATA_PortReset` (`@0x806A2298`) against `IobXauiWindow`.
+* **Priority 3 / Collaborator Tips (`trace_probe.py`, `xtensa.py`, `sidekick.py`) — CLEARED:**
+  - **Tip 1 (`emulator/core/trace_probe.py`)**: Zero-overhead per-PC/IRQ `TraceProbe` captures milestone and IRQ
+    events during emulation and generates `HwPatchDescriptor` records (displaced 32-bit ARM instruction + `B` hook
+    + 6-word stolen-instruction trampoline) for real-HW deployment.
+  - **Tip 2 (`emulator/coprocessors/xtensa.py`, `emulator/devices/sidekick.py`, `emulator/ui/web.py`)**:
+    `Dsmc2Camera._install_asic_upload_hooks()` observes the real firmware reading `/image2/{isp,iob0,iob1}/{dram,iram}.bin`,
+    writing segments into `XtensaCore`, and executing decoded Tensilica Xtensa LX instructions (`ENTRY`, `L32R`, `MOVI.N`,
+    `S32I.N`, `L32I.N`, `ADDI`, `SLLI`/`SRLI`/`EXTUI`, `WSR`/`RSR`, `RETW.N`, `CALL`/`J`/branches) upon reset release,
+    with IOB0/IOB1 local MMIO doorbells (`0x3FFE8000`) bridged directly to `IobXauiWindow.notify_xtensa_doorbell()`;
+    `SidekickMcu` bridges rotary/button events over RCP2 + `UART3` RX IRQ 74 and serves a live 220 × 176 OLED via Web Studio (`/api/sidekick/*`).
 
 ## The hard frontier (the real difficulty, from collaborator feedback)
 Getting raw image data INTO and BETWEEN the ASICs: compression + SATA medium via IOB/FPGA. DSMC has

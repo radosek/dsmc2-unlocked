@@ -29,24 +29,15 @@ Background (all addresses stock 7.4.1, from the canonical Ghidra project
 
 Empirical result on the emulated boot (this test):
 
-* ``cdb2_init`` **does run** (exactly once) during ``boot_to_application`` — the factory DB
-  opens, so ``DAT_814CD39C`` is non-null (ready).
-* BUT the prepared-statement cascade **fails**: ``DAT_814CD3A0`` (ATTACH stmt) and
-  ``DAT_814CD3D8`` (GET stmt) are null. Root cause: the shipped ``factory.db`` / ``user.db``
-  are not readable through the emulator's NAND path — the synthesized YAFFS2 ``/env`` image
-  mounts but the YAFFS block-scan does not yet **register file objects** (documented limit in
-  ``devices/nand_image.py`` / ``load_firmware``), so ``sqlite3_open`` yields a handle but the
-  first statement touching the (empty) DB file fails to prepare.
-* The firmware's own code **already calls** ``_cdb2_parameter_get_value`` >100 times during
-  CSM bring-up, each hitting this same prepare-fail path and returning rc=12.
-
-So the real-FW RCP param path **drives end-to-end to the SQLite layer** and returns its own
-defined error code; the single remaining blocker is the NAND/YAFFS file-object scan that would
-let the firmware read ``factory.db`` and populate the prepared statements.
-
-NEXT BLOCKER (fw): ``cdb2_init`` @0x8007FB58 — ``sqlite3_prepare_v2`` (FUN_80DA9688) of the
-ATTACH statement into ``DAT_814CD3A0`` fails because ``<dir>/cdb2/factory.db`` is empty/absent
-in the emulated NAND; depends on the YAFFS2 file-object scan (``devices/nand_image.py``).
+* ``write_image_partition()`` in ``devices/nand_image.py`` stages ``/image2/cdb2/factory.db`` into
+  NAND with sub-sector OOB tags and block-incrementing ``seqNumber``, so the firmware's
+  ``yaffs_Scan`` registers the file object cleanly.
+* ``cdb2_init`` **runs once** during ``boot_to_application``, opens ``/image2/cdb2/factory.db``
+  into ``DAT_814CD39C``, and compiles all prepared statements (``DAT_814CD3A0`` ATTACH,
+  ``DAT_814CD3D8`` GET, ``DAT_814CD3D4`` SET are non-null).
+* The firmware's own code calls ``_cdb2_parameter_get_value`` >100 times during CSM bring-up,
+  and direct calls via ``fw_cdb2_get_uint32`` / ``fw_cdb2_set_uint32`` return **rc=0** and
+  persist overrides through ``/data/cdb2/user.db``.
 """
 
 import pytest
@@ -64,8 +55,10 @@ CDB2_INIT = 0x8007FB58
 CDB2_GET_VALUE = 0x80080C34    # _cdb2_parameter_get_value(rcpname, type_str, out)
 CDB2_SET_VALUE = 0x80082050    # _cdb2_parameter_set_value
 
-# _cdb2_parameter_get_value return codes (from the decompile)
+# _cdb2_parameter_get_value / _set_value return codes (from the decompile)
+RC_OK = 0
 RC_PREPARE_FAIL = 0xC          # FUN_80D7D7A8 / finalize error (null prepared stmt)
+CDB2_SET_STMT = 0x814CD3D4     # DAT_814cd3d4: prepared SET (INSERT OR REPLACE INTO user.parameters)
 
 # A real parameter name present in the shipped factory.db (verified: UINT32, default 0).
 REAL_PARAM_NAME = "DEBUG_ENABLE_SHELL"
@@ -120,45 +113,48 @@ def test_firmware_itself_drives_the_get_path(booted):
     assert counters["get_value"] > 0, "firmware should query params via _cdb2_parameter_get_value"
 
 
-def test_real_fw_get_value_reaches_sqlite_and_returns_defined_rc(booted):
-    """Drive _cdb2_parameter_get_value directly on the booted FW with a real param name.
+def test_real_fw_get_value_executes_sqlite_query(booted):
+    """Drive _cdb2_parameter_get_value directly on the booted FW with real params.
 
-    The ready-flag gate is passed (cdb2_init ran), so the getter does NOT take its rc=1
-    "before init" branch; it reaches the SQLite prepare/step on DAT_814CD3D8. Because the
-    prepared GET statement is null (see below), the firmware returns its defined prepare-fail
-    code rc=0xC — proving the genuine param-get code path executes and pinning the blocker.
+    With /image2/cdb2/factory.db staged in NAND via write_image_partition, cdb2_init
+    compiles all prepared statements, so SQLite lookup succeeds and returns rc=0 with the
+    parameter value written to out_buf.
     """
     cam, _res, _counters = booted
     _wstr(cam, _ARG_RCPNAME, REAL_PARAM_NAME)
     _wstr(cam, _ARG_TYPE, REAL_PARAM_TYPE)
-    cam.bus.write_mem(cam.fw(_OUT_BUF), b"\x00" * 32)
+    cam.bus.write_mem(cam.fw(_OUT_BUF), b"\xEF\xBE\xAD\xDE" + b"\x00" * 28)
 
     rc = cam.call_function(CDB2_GET_VALUE, [_ARG_RCPNAME, _ARG_TYPE, _OUT_BUF])
-    assert rc == RC_PREPARE_FAIL, (
-        f"expected FW prepare-fail rc=0x{RC_PREPARE_FAIL:X}, got 0x{rc:X}; "
-        "rc=1 would mean cdb2 never initialized, rc=0 would mean the param resolved"
-    )
+    assert rc == RC_OK, f"expected RC_OK (0), got 0x{rc:X}"
+    assert cam.bus.read_u32(cam.fw(_OUT_BUF)) == 0
+
+    rc_ip, ip_val = cam.fw_cdb2_get_uint32("COMM_IP_ADDRESS")
+    assert rc_ip == RC_OK
+    assert ip_val == 168430090
 
 
-def test_blocker_is_null_prepared_statements(booted):
-    """Pin the exact blocker: cdb2_init opened the DB but the sqlite3_prepare_v2 cascade
-    failed, so the ATTACH and GET statement handles are null. This is why every GET returns
-    rc=0xC. The gap to close is the NAND/YAFFS file-object scan that would make the shipped
-    factory.db readable (devices/nand_image.py)."""
+def test_prepared_statements_compiled(booted):
+    """Verify cdb2_init compiled the ATTACH, GET, and SET SQLite statements from factory.db."""
     cam, _res, _counters = booted
     attach_stmt = cam.bus.read_u32(cam.fw(CDB2_ATTACH_STMT))
     get_stmt = cam.bus.read_u32(cam.fw(CDB2_GET_STMT))
-    assert attach_stmt == 0, "ATTACH statement prepare must be the first failure (null handle)"
-    assert get_stmt == 0, "GET statement is never prepared once ATTACH prepare fails"
+    set_stmt = cam.bus.read_u32(cam.fw(CDB2_SET_STMT))
+    assert attach_stmt != 0, "ATTACH prepared statement must be non-null"
+    assert get_stmt != 0, "GET prepared statement must be non-null"
+    assert set_stmt != 0, "SET prepared statement must be non-null"
 
 
-def test_get_value_is_deterministic(booted):
-    """The real-FW GET call is deterministic across repeated invocations from the same state."""
+def test_get_and_set_value_roundtrip_through_user_db(booted):
+    """Verify real-FW CDB2 SET persists an override into /data/cdb2/user.db and GET reads it back."""
     cam, _res, _counters = booted
-    _wstr(cam, _ARG_RCPNAME, REAL_PARAM_NAME)
-    _wstr(cam, _ARG_TYPE, REAL_PARAM_TYPE)
-    results = []
-    for _ in range(3):
-        cam.bus.write_mem(cam.fw(_OUT_BUF), b"\x00" * 32)
-        results.append(cam.call_function(CDB2_GET_VALUE, [_ARG_RCPNAME, _ARG_TYPE, _OUT_BUF]))
-    assert results == [RC_PREPARE_FAIL] * 3
+    rc_set = cam.fw_cdb2_set_uint32(REAL_PARAM_NAME, 1)
+    assert rc_set == RC_OK
+    rc_get, val = cam.fw_cdb2_get_uint32(REAL_PARAM_NAME)
+    assert rc_get == RC_OK
+    assert val == 1
+    # Restore default value 0 for clean repeatability
+    assert cam.fw_cdb2_set_uint32(REAL_PARAM_NAME, 0) == RC_OK
+    rc_get2, val2 = cam.fw_cdb2_get_uint32(REAL_PARAM_NAME)
+    assert rc_get2 == RC_OK
+    assert val2 == 0

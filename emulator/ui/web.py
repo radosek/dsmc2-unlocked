@@ -633,6 +633,19 @@ def create_handler(studio: WebStudio):
                 with studio.lock:
                     rig_stat = studio.camera.rig.get_status() if hasattr(studio.camera, "rig") and studio.camera.rig else {}
                 self._send_json(rig_stat)
+            elif path == "/api/sidekick/status":
+                with studio.lock:
+                    sk_stat = studio.camera.sidekick.get_status() if hasattr(studio.camera, "sidekick") and studio.camera.sidekick else {}
+                self._send_json(sk_stat)
+            elif path == "/api/sidekick/oled.png":
+                with studio.lock:
+                    png_bytes = studio.camera.sidekick.render_oled_png_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.send_header("Content-Length", str(len(png_bytes)))
+                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+                self.end_headers()
+                self.wfile.write(png_bytes)
             else:
                 self.send_error(404, "Not Found")
 
@@ -678,6 +691,16 @@ def create_handler(studio: WebStudio):
                 else:
                     studio.handle_button(btn)
                 self._send_json({"status": "ok", "button": btn})
+
+            elif path == "/api/sidekick/button":
+                btn = str(data.get("button", "MENU"))
+                try:
+                    with studio.lock:
+                        ev = studio.camera.sidekick.press_button(btn)
+                        sk_stat = studio.camera.sidekick.get_status()
+                    self._send_json({"status": "ok", "event": ev, "sidekick": sk_stat})
+                except ValueError as e:
+                    self._send_json({"status": "error", "message": str(e)}, status=400)
 
             elif path == "/api/rcp":
                 cmd = str(data.get("command", "")).strip()

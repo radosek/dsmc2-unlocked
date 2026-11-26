@@ -247,6 +247,10 @@ class R3dClipRecorder:
             self.camera.c2c.set_ssd_present(mounted)
         if hasattr(self.camera, "iob0") and self.camera.iob0 is not None:
             self.camera.iob0.sata_link_up = bool(mounted)
+        # Keep the firmware-visible IOB XAUI window (Unicorn MEM_READ hook @0x1C000000, which
+        # serves SATA_ReadPortRegister PxSSTS @0x1C0B06B8 to the real SATA_MediaPresent) in step.
+        if getattr(self.camera, "iob_xaui", None) is not None:
+            self.camera.iob_xaui.media_present = bool(mounted)
 
     def _write_udf_volume_header(self) -> None:
         """Create/refresh ECMA-167 / UDF 2.01 volume descriptor image on virtual MINI-MAG."""

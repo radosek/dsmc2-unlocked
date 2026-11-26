@@ -61,7 +61,7 @@ The `SystemBus` models the physical address space of the Texas Instruments DM372
 | Physical Address Range | Size | Subsystem | Backing Mechanism |
 |---|---|---|---|
 | `0x08000000 - 0x08FFFFFF` | 16 MB | GPMC CS0 NAND Flash Window | Mapped memory |
-| `0x18000000 - 0x1FBFFFFF` | 124 MB | GPMC CS1/CS2 (FPGA / Board Window) | Mapped memory |
+| `0x18000000 - 0x1FBFFFFF` | 124 MB | GPMC CS1/CS2 (FPGA / IOB XAUI Window) | Mapped memory + `IobXauiWindow` (`0x1C000000`, SATA3 shadow SREGs) |
 | `0x3FFE0000 - 0x3FFFFFFF` | 128 KB | IOB0 DRAM & C2C Doorbell (`0x3FFE8000`) | Mapped memory + `IobDoorbellDevice` |
 | `0x40000000 - 0x403FFFFF` | 4 MB | OMAP Internal SRAM (`0x40200000`) & ROM | Mapped memory |
 | `0x48000000 - 0x48000FFF` | 4 KB | OMAP L4-Core Address Protection (`L4_CORE_AP`) | `OmapL4Ap` |
@@ -74,18 +74,24 @@ The `SystemBus` models the physical address space of the Texas Instruments DM372
 | `0x4806A000 - 0x4806CFFF` | 12 KB | OMAP UART1 (`0x4806A000`) & UART2 (`0x4806C000`) | `OmapUart` |
 | `0x48070000 - 0x48073FFF` | 16 KB | OMAP I2C1 (`0x48070000`) & I2C2 (`0x48072000`) | `OmapI2c` |
 | `0x48086000 - 0x49040FFF` | Varies | OMAP GPTimer 1..11 (`TIMER_MAP`) | `OmapGPTimer` |
+| `0x48094000 - 0x48094FFF` | 4 KB | OMAP3630 Inter-Processor Mailbox (DSP) | `OmapMailbox` |
 | `0x48098000 - 0x480BAFFF` | Varies | OMAP McSPI 1..4 (`MCSPI_MAP`, SPI Coprocessor Targets) | `OmapMcspi` + `CoprocessorTransport` (SPI register frame `[0x81/0x01][addr][data]`, ACK 0x1F) |
-| `0xA5800000 - 0xA5FFFFFF` | 8 MB | GPMC IOB AHB mailbox (memory-slave), separate from SPI | `IobMailboxDevice` |
+| `0x480B2000 - 0x480B2FFF` | 4 KB | OMAP HDQ / 1-Wire (DSMC2 Boards & Signatures) | `OmapHdq1Wire` |
+| `0x480BC000 - 0x480BFFFF` | 16 KB | OMAP Camera ISP (`CAM_ISP`) | `OmapCamIsp` |
 | `0x48200000 - 0x48200FFF` | 4 KB | OMAP MPU Interrupt Controller (INTC) | `OmapIntc` |
 | `0x48306000 - 0x48307FFF` | 8 KB | OMAP L4-Wakeup Power & Reset Management (`PRM`) | `OmapPrm` |
+| `0x4830A000 - 0x4830AFFF` | 4 KB | OMAP Control ID (`IDCODE` / `DIE_ID`) | `OmapScmId` |
 | `0x48310000 - 0x49059FFF` | Varies | OMAP GPIO 1..6 (`GPIO_MAP`) | `OmapGpio` |
 | `0x49000000 - 0x49000FFF` | 4 KB | OMAP L4-Per Address Protection (`L4_PER_AP`) | `OmapL4Ap` |
 | `0x49020000 - 0x49020FFF` | 4 KB | OMAP UART3 (CTRL / RCP & ROM Boot Port) | `OmapUart` |
 | `0x49042000 - 0x49042FFF` | 4 KB | OMAP UART4 (System Debug Log) | `OmapUart` |
 | `0x4FFE8000 - 0x4FFE8FFF` | 4 KB | IOB1 C2C Doorbell | `IobDoorbellDevice` |
+| `0x5C000000 - 0x5C0FFFFF` | 1 MB | OMAP IVA2.2 DSP Memory Aperture (`IVA2_MEM`) | Mapped RAM |
+| `0x5D000000 - 0x5D000FFF` | 4 KB | OMAP IVA2.2 MMU (`MMU_SYSCONFIG` / TTB / TLB) | `OmapIva2Mmu` |
 | `0x6D000000 - 0x6D000FFF` | 4 KB | OMAP SDRAM Controller (`SDRC`) | `OmapSdrc` |
 | `0x6E000000 - 0x6E000FFF` | 4 KB | OMAP GPMC Controller & NAND FIFO | `OmapGpmc` |
 | `0x80000000 - 0x9FFFFFFF` | 512 MB | System DDR SDRAM (256 MB on physical hardware: `0x80000000 - 0x8FFFFFFF`) | Mapped memory |
+| `0xA5800000 - 0xA5FFFFFF` | 8 MB | GPMC IOB AHB mailbox (memory-slave), separate from SPI | `IobMailboxDevice` |
 
 ---
 
@@ -130,7 +136,15 @@ The `SystemBus` models the physical address space of the Texas Instruments DM372
   - `Tmp411Thermal`: Models sensor die and brain temperatures.
   - `OlpfEeprom`: Models the 256-byte OLPF identification EEPROM at `0x54`.
   - `MaXTouchDevice`: Models the Atmel maXTouch digitizer at `0x4B` on I2C3.
-  - `EdidEeprom`: Models the 128-byte VESA EDID 1.3 EEPROM (`RED TOUCH 7.0`) at `0x50` on I2C3.
+  - `EdidEeprom`: Models the 128-byte VESA EDID 1.3 EEPROM (`RED TOUCH 7.0`) at `0x50` on I2C2 and I2C3.
+  - `MaxFanController`: Models the dual-channel fan controller at `0x4D` on I2C1, answering tachometer reads for `HAL_Temp_SpeedTest`.
+  - `UcdPowerSequencer`: Models TI UCD9090 (`0x70`, `0x7C`) and UCD90160 (`0x65`) PMBus power sequencers.
+  - `Si5346ClockSynth`, `Dac7578SensorDac`, `FocalTechTouch`: I2C clock/DAC/secondary-touch devices on I2C2/I2C3.
+
+### 3.12 Trace Probe, ASIC Upload Observability & Sidekick MCU
+- `TraceProbe` (`emulator/core/trace_probe.py`): Attaches zero-overhead per-address `UC_HOOK_CODE` milestone and IRQ probes onto `Dsmc2Camera` and exports `HwPatchDescriptor` records (displaced 32-bit ARM instruction + 6-word ARM trampoline) for physical hardware deployment.
+- **ASIC Xtensa Upload Hooks** (`Dsmc2Camera._install_asic_upload_hooks`): Observes the real firmware's `isp_load_from_embedded` (`@0x80664D18`) and `iob_load_from_embedded` (`@0x80664ECC`) uploads from `/image2` into `XtensaCore` (`isp1`, `isp2`, `iob0`, `iob1`) IRAM (`0x40000000` / `0x4FFF0000`) and DRAM (`0x3FFE0000` / `0x4FFE0000`), and detects reset release.
+- `SidekickMcu` (`emulator/devices/sidekick.py`): Models the DSMC2 Sidekick controller with private 64 KB Flash / 16 KB SRAM, rotary and navigation buttons, and a 220 × 176 monochrome OLED status display synced to `cam.rcp.state`.
 
 ### 3.8 `OmapGpmc` (`emulator/devices/gpmc.py`)
 - Models the General-Purpose Memory Controller at `0x6E000000`.

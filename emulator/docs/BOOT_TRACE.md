@@ -181,3 +181,18 @@ Follow these steps to verify that the firmware uses a modified global variable:
    ```python
    cam.boot_until(consumer_pc, max_instructions=10_000_000)
    ```
+
+---
+
+## 7. Staged Full-Application Boot Progression (`0x001003BF` -> `0xDFBCFFFF`)
+
+Beyond the 45M-instruction idle park (`boot()`), `Dsmc2Camera` provides four fine-grained scheduler drivers (`slice_size=12_000`..`100_000`) that advance the real firmware through every driver barrier into the live application:
+
+| Helper Method | Target / Event Flags | Milestones Cleared |
+|---|---|---|
+| `boot_to_late_init()` | `0x001003BF` | `SystemInitThread` finishes, `Driver thread` and `Starter Thread` spawn, `/env` (`PARTITION_TABLE` v6) & `/image2` (`cdb2/factory.db`, `isp`/`iob0`/`iob1` blobs) mount via `init_filesystem` (`0x80008310`), `cdb2_init` (`0x8007FB58`) compiles SQLite prepared statements (`DAT_814CD3A0`/`D3D4`/`D3D8`), CRYPT/RTC/FileX/NAND-FS set `0x8`. |
+| `boot_to_ui_bringup()` | `0xC3300FFF` | Boards (`0x400`), Fan (`0x800`, `HAL_Temp_SpeedTest` on `I2C1 0x4D`), XAUI (`0x200000`), and Mailbox (`0x1000000`) complete; `hw_cap` (`0x815811F4`) populates to `0x00041182`. |
+| `boot_to_run_application()` | `0xCF30FFFF` | SATA (`0x4000000`) and Media (`0x8000000`) cross the storage barrier, `IOB/ISP Binary Download` (`0x1000` at `0x80670B10`) uploads `/image2/{isp,iob0,iob1}/{dram,iram}.bin` into Xtensa IRAM/DRAM, and Display Batch (`0x2000`/`0x4000`/`0x8000`) completes. |
+| `boot_to_application()` | `0xDFBCFFFF` | DSP (`0x40000`), Audio (`0x80000`), Contiguous Media Space (`0x10000000`), and Cal Load (`0x800000`) clear `APPLICATION_FLAGS_BARRIER`; `Driver thread` puts semaphore `0x81E53618`, releasing `Starter Thread` -> `run_application` (`0x80008CB4`), creating `APP_SEMAPHORE` (`0x814C6D1C`), and spawning `Camera State Manager` (`0x8048D534`). |
+
+From any reached boot state, `cam.call_function(entry_pc, args)` synchronously invokes firmware AAPCS routines (such as `fw_cdb2_get_uint32` `@0x80080C34` or `fw_cdb2_set_uint32` `@0x800820E8`) in IRQ/FIQ-masked Supervisor mode using the scratch DDR landing pad `0x881FF000`, and `cam.install_trace_probe()` captures per-PC/IRQ hits via `TraceProbe`.

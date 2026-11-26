@@ -113,6 +113,19 @@ _SATA_SHADOW_REGS: Dict[int, int] = {
     0x1A0: SATA_HBA_FPGA_RUNNING,   # HBA controller reg 0 -- FPGA running / HBA alive
     0x1AE: SATA_PXSSTS_PRESENT,     # PxSSTS -- DET=3 present, SPD=2 Gen2, IPM=1 active
 }
+# Additional AHCI shadow registers polled by SATA_HostInit (@0x806A14A4) & SATA_PortReset (@0x806A2298)
+# when attach_engine_enabled is True: GHC=AE, PI=1, VS=1.3, PxCMD idle (CR/FR clear), PxTFD DRDY|DSC.
+_SATA_ATTACH_ENGINE_REGS: Dict[int, int] = {
+    0x1A1: 0x80000000,  # GHC (AE=1, HR=0)
+    0x1A2: 0x00000000,  # IS
+    0x1A3: 0x00000001,  # PI (Port 0 present)
+    0x1A4: 0x00010300,  # VS (AHCI 1.3)
+    0x1AA: 0x00000000,  # PxCMD (CR=0, FR=0)
+    0x1AC: 0x00000050,  # PxTFD (DRDY|DSC, BSY=0, DRQ=0)
+    0x1B0: 0x00000000,  # PxSERR
+    0x1B1: 0x00000000,  # PxSACT
+    0x1B2: 0x00000000,  # PxCI
+}
 
 
 # ---- IOB command-response mailbox (xsys_iob_cmd_tx ack) ------------------------------------
@@ -164,18 +177,32 @@ class IobXauiWindow:
     them, exactly as a brought-up link would.
     """
 
-    def __init__(self, link_up: bool = True, media_present: bool = True):
+    def __init__(
+        self,
+        link_up: bool = True,
+        media_present: bool = True,
+        attach_engine_enabled: bool = False,
+    ):
         self.link_up = link_up
         # When True the SATA3 shadow block reports an attached, present SSD on HBA0/port0 so the
         # SATA/Media storage-init cascade completes. False models an empty main media bay (the
         # FW's "No media is present" branch -- a valid boot that still releases run_application).
         self.media_present = media_present
+        self.attach_engine_enabled = bool(attach_engine_enabled)
         self.read_count = 0
+        self.xtensa_ack_count = 0
         self.status_reads: Dict[int, int] = {}
         # IOB command-response mailbox: per-core "done bit armed" latch (read-to-clear). Armed so
         # the first poll after a command sees the done bit set; the read clears it so the paired
         # clear-wait passes too. Keyed by window offset (0x0B0018 IOB0 / 0x0B001C IOB1).
         self._iob_cmd_done_armed: Dict[int, bool] = {off: True for off in IOB_CMDRESP_OFFS}
+
+    def notify_xtensa_doorbell(self, core_id: int, addr: int, val: int) -> None:
+        """Bridge Xtensa core local MMIO doorbell writes (``0x3FFE8000``) to IOB cmd-response."""
+        if addr == 0x3FFE8000 and val != 0 and core_id in (0, 1):
+            off = IOB_CMDRESP_OFFS[core_id]
+            self._iob_cmd_done_armed[off] = True
+            self.xtensa_ack_count += 1
 
     def _reg_off(self, window_offset: int):
         """Map a window offset to (port_base, reg_off) if it lands on a modelled XAUI port
@@ -205,7 +232,12 @@ class IobXauiWindow:
         if sata_idx is not None:
             if not self.link_up:
                 return 0x00000000
-            val = _SATA_SHADOW_REGS.get(sata_idx, 0x00000000)
+            if sata_idx in _SATA_SHADOW_REGS:
+                val = _SATA_SHADOW_REGS[sata_idx]
+            elif self.attach_engine_enabled and sata_idx in _SATA_ATTACH_ENGINE_REGS:
+                val = _SATA_ATTACH_ENGINE_REGS[sata_idx]
+            else:
+                return 0x00000000
             # PxSSTS reports "no device" (DET=0) when the main media bay is modelled empty; the
             # HBA/FPGA-running register stays non-zero (controller is up regardless of media).
             if sata_idx == 0x1AE and not self.media_present:
@@ -221,7 +253,9 @@ class IobXauiWindow:
             return True
         sata_idx = self._sata_idx(window_offset)
         if sata_idx is not None:
-            return sata_idx in _SATA_SHADOW_REGS
+            if sata_idx in _SATA_SHADOW_REGS:
+                return True
+            return self.attach_engine_enabled and sata_idx in _SATA_ATTACH_ENGINE_REGS
         port_base, reg_off = self._reg_off(window_offset)
         return port_base is not None and reg_off in _PORT_LINK_UP_REGS
 
